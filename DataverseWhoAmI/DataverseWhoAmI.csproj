@@ -5,6 +5,14 @@
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
+    <PackAsTool>true</PackAsTool>
+    <ToolCommandName>dataverse-whoami</ToolCommandName>
+    <PackageId>DataverseWhoAmI.Tool</PackageId>
+    <Version>1.0.0</Version>
+    <Authors>Magnus Gether Sørensen</Authors>
+    <Company>Delegate A/S</Company>
+    <Description>CLI tool to run WhoAmI against Microsoft Dataverse.</Description>
+    <PackageTags>dataverse;cli;whoami</PackageTags>
   </PropertyGroup>
 
   <ItemGroup>
