@@ -1,33 +1,38 @@
 # Active Context
 
 ## Current Work Focus
-- Initializing project documentation (Memory Bank) for the Dataverse WhoAmI .NET Tool.
-- Capturing requirements, architecture, technology stack, and product context.
+- Extracted Dataverse connection logic into a reusable .NET 8 class library (DataverseConnection).
+- Implemented AddDataverse extension method for IServiceCollection to provide ServiceClient via DI.
+- Refactored DataverseWhoAmI CLI app to use DI and the new library.
+- Maintaining up-to-date Memory Bank documentation.
 
 ## Recent Changes
-- Created projectbrief.md, productContext.md, systemPatterns.md, and techContext.md with detailed project information.
+- Created DataverseConnection class library targeting .NET 8.
+- Added Microsoft.PowerPlatform.Dataverse.Client and Azure.Identity as dependencies.
+- Implemented ServiceCollectionExtensions.cs with AddDataverse and DataverseOptions.
+- Added project reference from DataverseWhoAmI to DataverseConnection.
+- Refactored Program.cs in DataverseWhoAmI to use DI and AddDataverse.
+- Verified successful build of both projects.
 
 ## Next Steps
-- Scaffold a new .NET 8 console application suitable for packaging as a dotnet tool.
-- Add references to Microsoft.PowerPlatform.Dataverse.Client and Azure.Identity via NuGet.
-- Implement logic to:
-  - Parse Dataverse URL from command-line or environment variable.
-  - Authenticate using DefaultAzureCredential.
-  - Connect to Dataverse and execute WhoAmIRequest.
-  - Print result to console.
-- Add error handling and clear output formatting.
-- Document implementation progress and update memory bank as work proceeds.
+- Add NuGet packaging metadata to DataverseConnection for distribution.
+- Publish DataverseConnection as a NuGet package (internal or public).
+- Add usage documentation and samples for AddDataverse.
+- Test CLI and library integration on all supported platforms.
+- Continue updating Memory Bank as project evolves.
 
 ## Active Decisions and Considerations
-- Only DefaultAzureCredential will be supported for authentication.
-- Tool will be CLI-first, with no additional UI.
-- Output will be human-readable and suitable for automation.
+- Only DefaultAzureCredential is supported for authentication.
+- Connection logic is now reusable and decoupled from CLI logic.
+- DI pattern is used for ServiceClient provisioning.
+- Output remains human-readable and suitable for automation.
 
 ## Important Patterns and Preferences
-- Minimal CLI pattern for argument parsing and execution.
-- Service abstraction for Dataverse logic (optional, for testability).
+- Extension method pattern for DI registration.
+- Separation of concerns: CLI logic vs. connection logic.
 - Cross-platform compatibility.
 
 ## Learnings and Project Insights
-- Memory Bank structure ensures all project context is preserved and accessible for future work.
-- .NET 8 and Azure.Identity provide a modern, secure foundation for Dataverse tooling.
+- Extracting connection logic into a library enables rapid reuse and standardization across .NET projects.
+- DI and extension methods simplify integration and testing.
+- Memory Bank ensures all architectural and implementation decisions are preserved.

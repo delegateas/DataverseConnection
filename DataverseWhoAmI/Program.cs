@@ -2,8 +2,8 @@
 using System.Threading.Tasks;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Crm.Sdk.Messages;
-using Azure.Identity;
-using Azure.Core;
+using Microsoft.Extensions.DependencyInjection;
+using DataverseConnection;
 
 class Program
 {
@@ -22,27 +22,16 @@ class Program
 
         try
         {
-            var credential = new DefaultAzureCredential();
-            // The resource scope for Dataverse
-            string resource = $"{new Uri(dataverseUrl).GetLeftPart(UriPartial.Authority)}/.default";
-
-            // Token provider function for ServiceClient
-            async Task<string> TokenProvider(string url)
+            // Setup DI and register ServiceClient using AddDataverse
+            var services = new ServiceCollection();
+            services.AddDataverse(options =>
             {
-                var tokenRequestContext = new TokenRequestContext(new[] { resource });
-                var token = await credential.GetTokenAsync(tokenRequestContext, default);
-                return token.Token;
-            }
+                options.DataverseUrl = dataverseUrl;
+                // options.TokenCredential = ... // Optional: customize credential if needed
+            });
 
-            using var serviceClient = new ServiceClient(
-                new Uri(dataverseUrl),
-                tokenProviderFunction: TokenProvider);
-
-            if (!serviceClient.IsReady)
-            {
-                Console.Error.WriteLine("Error: ServiceClient is not ready. Check your credentials and Dataverse URL.");
-                return 2;
-            }
+            using var serviceProvider = services.BuildServiceProvider();
+            var serviceClient = serviceProvider.GetRequiredService<ServiceClient>();
 
             var whoAmIRequest = new WhoAmIRequest();
             var response = (WhoAmIResponse)serviceClient.Execute(whoAmIRequest);
