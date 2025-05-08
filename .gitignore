@@ -1,0 +1,54 @@
+# .NET build outputs
+bin/
+obj/
+
+# User-specific files
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+
+# VSCode settings
+.vscode/
+
+# Rider settings
+.idea/
+
+# OS generated files
+.DS_Store
+Thumbs.db
+
+# NuGet packages
+*.nupkg
+*.snupkg
+packages/
+# NuGet v3
+project.lock.json
+project.fragment.lock.json
+artifacts/
+
+# Logs
+*.log
+
+# Test results
+TestResults/
+*.trx
+
+# Dotnet tool artifacts
+*.dotnet_tool*
+
+# Local secrets
+secrets.json
+
+# Others
+*.swp
+*.bak
+*.tmp
+*.orig
+*.rej
+
+# Ignore global.json if not used for SDK pinning
+# global.json
+
+# Ignore publish output
+publish/
