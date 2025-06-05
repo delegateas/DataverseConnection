@@ -15,11 +15,14 @@ jobs:
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build all projects
-        run: dotnet build --configuration Release --no-restore
+      - name: Build DataverseConnection
+        run: dotnet build DataverseConnection/DataverseConnection.csproj --configuration Release
 
       - name: Pack DataverseConnection
-        run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o out
+        run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o local-nuget
+
+      - name: Restore WhoAmI with local NuGet
+        run: dotnet restore DataverseWhoAmI/DataverseWhoAmI.csproj
+
+      - name: Build WhoAmI
+        run: dotnet build DataverseWhoAmI/DataverseWhoAmI.csproj --configuration Release --no-restore
