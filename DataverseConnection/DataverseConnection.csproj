@@ -5,7 +5,6 @@
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>DataverseConnection</PackageId>
-    <Version>1.0.0</Version>
     <Authors>Magnus Gether Sørensen</Authors>
     <Company>Delegate A/S</Company>
     <Description>Reusable connection logic for Microsoft Dataverse.</Description>

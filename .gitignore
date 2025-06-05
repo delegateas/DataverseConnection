@@ -52,3 +52,4 @@ secrets.json
 
 # Ignore publish output
 publish/
+DataverseWhoAmI/appsettings.json

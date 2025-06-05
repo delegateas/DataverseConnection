@@ -4,6 +4,7 @@ using Azure.Core;
 using Azure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.PowerPlatform.Dataverse.Client;
+using Microsoft.Extensions.Configuration;
 
 namespace DataverseConnection
 {
@@ -34,20 +35,26 @@ namespace DataverseConnection
         /// <param name="services">The service collection.</param>
         /// <param name="configureOptions">Action to configure DataverseOptions.</param>
         /// <returns>The service collection.</returns>
-        public static IServiceCollection AddDataverse(this IServiceCollection services, Action<DataverseOptions> configureOptions)
+        public static IServiceCollection AddDataverse(this IServiceCollection services, Action<DataverseOptions>? configureOptions = null)
         {
-            if (configureOptions == null) throw new ArgumentNullException(nameof(configureOptions));
-
             var options = new DataverseOptions();
-            configureOptions(options);
-
-            if (string.IsNullOrWhiteSpace(options.DataverseUrl))
-                throw new ArgumentException("DataverseUrl must be provided in DataverseOptions.");
+            configureOptions?.Invoke(options);
 
             services.AddSingleton(sp =>
             {
+                // Determine DataverseUrl: options first, then configuration
+                string? dataverseUrl = options.DataverseUrl;
+                if (string.IsNullOrWhiteSpace(dataverseUrl))
+                {
+                    var config = sp.GetService<IConfiguration>();
+                    dataverseUrl = config?["DATAVERSE_URL"];
+                }
+
+                if (string.IsNullOrWhiteSpace(dataverseUrl))
+                    throw new InvalidOperationException("DataverseUrl must be provided via options or configuration (DATAVERSE_URL).");
+
                 var credential = options.TokenCredential ?? new DefaultAzureCredential();
-                var resource = $"{new Uri(options.DataverseUrl).GetLeftPart(UriPartial.Authority)}/.default";
+                var resource = $"{new Uri(dataverseUrl).GetLeftPart(UriPartial.Authority)}/.default";
 
                 // Token provider function for ServiceClient
                 async Task<string> TokenProvider(string url)
@@ -58,7 +65,7 @@ namespace DataverseConnection
                 }
 
                 var serviceClient = new ServiceClient(
-                    new Uri(options.DataverseUrl),
+                    new Uri(dataverseUrl),
                     tokenProviderFunction: TokenProvider);
 
                 if (!serviceClient.IsReady)
