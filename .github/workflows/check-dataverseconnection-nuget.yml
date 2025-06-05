@@ -6,6 +6,7 @@ on:
 jobs:
   check-nuget:
     runs-on: ubuntu-latest
+    environment: 'Magesoe org'
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
