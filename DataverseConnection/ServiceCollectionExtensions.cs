@@ -5,6 +5,7 @@ using Azure.Identity;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.Caching.Memory;
 
 namespace DataverseConnection
 {
@@ -40,6 +41,9 @@ namespace DataverseConnection
             var options = new DataverseOptions();
             configureOptions?.Invoke(options);
 
+            // Ensure MemoryCache is registered
+            services.AddMemoryCache();
+
             services.AddSingleton(sp =>
             {
                 // Determine DataverseUrl: options first, then configuration
@@ -56,11 +60,34 @@ namespace DataverseConnection
                 var credential = options.TokenCredential ?? new DefaultAzureCredential();
                 var resource = $"{new Uri(dataverseUrl).GetLeftPart(UriPartial.Authority)}/.default";
 
+                var memoryCache = sp.GetRequiredService<IMemoryCache>();
+
                 // Token provider function for ServiceClient
                 async Task<string> TokenProvider(string url)
                 {
-                    var tokenRequestContext = new TokenRequestContext(new[] { resource });
+                    var cacheKey = $"dataverse_token_{resource}";
+                    if (memoryCache.TryGetValue<string>(cacheKey, out var cachedToken) && cachedToken != null)
+                        return cachedToken;
+
+                    var tokenRequestContext = new TokenRequestContext([resource]);
                     var token = await credential.GetTokenAsync(tokenRequestContext, default);
+
+                    // Set expiration 5 minutes before actual expiry, but never in the past
+                    var expiresOn = token.ExpiresOn.UtcDateTime;
+                    var now = DateTime.UtcNow;
+                    var expiration = expiresOn - TimeSpan.FromMinutes(5);
+                    if (expiration <= now)
+                    {
+                        // If token lifetime is less than 5 minutes, expire 1 minute before, or immediately if needed
+                        expiration = expiresOn > now.AddMinutes(1) ? expiresOn - TimeSpan.FromMinutes(1) : now.AddSeconds(10);
+                    }
+
+                    var cacheEntryOptions = new MemoryCacheEntryOptions
+                    {
+                        AbsoluteExpiration = expiration
+                    };
+                    memoryCache.Set(cacheKey, token.Token, cacheEntryOptions);
+
                     return token.Token;
                 }
 
