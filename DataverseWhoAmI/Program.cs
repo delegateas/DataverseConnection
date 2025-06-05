@@ -23,6 +23,7 @@ class Program
             var services = new ServiceCollection();
             services.AddSingleton<IConfiguration>(configuration);
             services.AddDataverseWithOrganizationServices();
+            services.AddDataverseFactory();
 
             using var serviceProvider = services.BuildServiceProvider();
 
@@ -51,6 +52,13 @@ class Program
             var response4 = (WhoAmIResponse)orgService.Execute(whoAmIRequest);
             Console.WriteLine("WhoAmIRequest via IOrganizationService (sync):");
             PrintResponse(response4);
+
+            // 5. Client from factory
+            var factory = serviceProvider.GetRequiredService<IServiceClientFactory>();
+            var factoryClient = factory.CreateClient();
+            var response5 = (WhoAmIResponse)await factoryClient.ExecuteAsync(whoAmIRequest);
+            Console.WriteLine("WhoAmIRequest via IServiceClientFactory:");
+            PrintResponse(response5);
 
             return 0;
         }
