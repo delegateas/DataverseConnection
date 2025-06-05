@@ -24,6 +24,11 @@ jobs:
       - name: Pack DataverseConnection
         run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o local-nuget
 
+      - name: Show working directory and local-nuget contents
+        run: |
+          pwd
+          ls -l local-nuget
+
       - name: Restore WhoAmI with local NuGet
         run: dotnet restore DataverseWhoAmI/DataverseWhoAmI.csproj --no-cache --force-evaluate
 
