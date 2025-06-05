@@ -44,7 +44,7 @@ namespace DataverseConnection
             if (string.IsNullOrWhiteSpace(options.DataverseUrl))
                 throw new ArgumentException("DataverseUrl must be provided in DataverseOptions.");
 
-            services.AddSingleton<ServiceClient>(sp =>
+            services.AddSingleton(sp =>
             {
                 var credential = options.TokenCredential ?? new DefaultAzureCredential();
                 var resource = $"{new Uri(options.DataverseUrl).GetLeftPart(UriPartial.Authority)}/.default";
