@@ -33,9 +33,6 @@ jobs:
           subscription-id: ${{ secrets.AZURE_SUBSCRIPTION_ID }}
 
       - name: Run DataverseWhoAmI
-        uses: azure/cli@v2
-        with:
-          azcliversion: latest
-          inlineScript: dotnet run --project DataverseWhoAmI/DataverseWhoAmI.csproj
+        run: dotnet run --project DataverseWhoAmI/DataverseWhoAmI.csproj
         env:
           DATAVERSE_URL: ${{ secrets.DATAVERSE_URL }}
