@@ -12,7 +12,6 @@ jobs:
 
       - name: Ensure local-nuget directory exists
         run: mkdir -p local-nuget
-        working-directory: ${{ github.workspace }}
 
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
@@ -21,22 +20,16 @@ jobs:
 
       - name: Build DataverseConnection
         run: dotnet build DataverseConnection/DataverseConnection.csproj --configuration Release
-        working-directory: ${{ github.workspace }}
 
       - name: Pack DataverseConnection
-        run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o local-nuget
-        working-directory: ${{ github.workspace }}
+        run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o local-nuget /p:Version=1.0.0-localpr
 
-      - name: Show working directory and local-nuget contents
+      - name: Update WhoAmI PackageReference to localpr version
         run: |
-          pwd
-          ls -l local-nuget
-        working-directory: ${{ github.workspace }}
+          sed -i 's|<PackageReference Include="DataverseConnection" Version=".*"|<PackageReference Include="DataverseConnection" Version="1.0.0-localpr"|' DataverseWhoAmI/DataverseWhoAmI.csproj
 
       - name: Restore WhoAmI with local NuGet
         run: dotnet restore DataverseWhoAmI/DataverseWhoAmI.csproj --no-cache --force-evaluate
-        working-directory: ${{ github.workspace }}
 
       - name: Build WhoAmI
         run: dotnet build DataverseWhoAmI/DataverseWhoAmI.csproj --configuration Release --no-restore
-        working-directory: ${{ github.workspace }}
