@@ -10,16 +10,26 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Ensure local-nuget directory exists
+        run: mkdir -p local-nuget
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
           dotnet-version: '8.0.x'
 
-      - name: Restore dependencies
-        run: dotnet restore
-
-      - name: Build all projects
-        run: dotnet build --configuration Release --no-restore
+      - name: Build DataverseConnection
+        run: dotnet build DataverseConnection/DataverseConnection.csproj --configuration Release
 
       - name: Pack DataverseConnection
-        run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o out
+        run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o local-nuget /p:Version=1.0.0-localpr
+
+      - name: Update WhoAmI PackageReference to localpr version
+        run: |
+          sed -i 's|<PackageReference Include="DataverseConnection" Version=".*"|<PackageReference Include="DataverseConnection" Version="1.0.0-localpr"|' DataverseWhoAmI/DataverseWhoAmI.csproj
+
+      - name: Restore WhoAmI with local NuGet
+        run: dotnet restore DataverseWhoAmI/DataverseWhoAmI.csproj --no-cache --force-evaluate
+
+      - name: Build WhoAmI
+        run: dotnet build DataverseWhoAmI/DataverseWhoAmI.csproj --configuration Release --no-restore

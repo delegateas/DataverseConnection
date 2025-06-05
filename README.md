@@ -87,6 +87,43 @@ var serviceClient = provider.GetRequiredService<ServiceClient>();
 
 ---
 
+## Advanced: Using ServiceClientFactory for Long-Running or Multi-Instance Scenarios
+
+For advanced scenarios—such as long-running jobs, background processing, or when you need multiple independent ServiceClient instances—you can use the `ServiceClientFactory`:
+
+### 1. Register the Factory
+
+```csharp
+using DataverseConnection;
+
+var services = new ServiceCollection();
+services.AddDataverseFactory(options =>
+{
+    // This is optional, by default the url is fetched from DATAVERSE_URL from the configuration
+    options.DataverseUrl = "<DataverseEnvironmentUrl>";
+});
+```
+
+### 2. Resolve and Use the Factory
+
+```csharp
+var provider = services.BuildServiceProvider();
+var factory = provider.GetRequiredService<IServiceClientFactory>();
+
+// Create a new ServiceClient instance (optionally override options per call)
+var serviceClient = factory.CreateClient(); // uses default options
+
+// Or, provide custom options for this instance
+var customClient = factory.CreateClient(new DataverseConnection.DataverseOptions
+{
+    DataverseUrl = "<AnotherDataverseEnvironmentUrl>"
+});
+```
+
+> **Note:** The default singleton ServiceClient registration remains recommended for most use cases. Use the factory only when you need to create new, independent ServiceClient instances (e.g., for parallel, long-running, or isolated operations).
+
+---
+
 ## Example: WhoAmI Verification Tool
 
 The repository includes a CLI tool (`DataverseWhoAmI`) that demonstrates and verifies the DataverseConnection library.

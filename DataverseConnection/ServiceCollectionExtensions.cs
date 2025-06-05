@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Xrm.Sdk;
 
 namespace DataverseConnection
 {
@@ -46,61 +47,65 @@ namespace DataverseConnection
 
             services.AddSingleton(sp =>
             {
-                // Determine DataverseUrl: options first, then configuration
-                string? dataverseUrl = options.DataverseUrl;
-                if (string.IsNullOrWhiteSpace(dataverseUrl))
-                {
-                    var config = sp.GetService<IConfiguration>();
-                    dataverseUrl = config?["DATAVERSE_URL"];
-                }
-
-                if (string.IsNullOrWhiteSpace(dataverseUrl))
-                    throw new InvalidOperationException("DataverseUrl must be provided via options or configuration (DATAVERSE_URL).");
-
-                var credential = options.TokenCredential ?? new DefaultAzureCredential();
-                var resource = $"{new Uri(dataverseUrl).GetLeftPart(UriPartial.Authority)}/.default";
-
                 var memoryCache = sp.GetRequiredService<IMemoryCache>();
-
-                // Token provider function for ServiceClient
-                async Task<string> TokenProvider(string url)
-                {
-                    var cacheKey = $"dataverse_token_{resource}";
-                    if (memoryCache.TryGetValue<string>(cacheKey, out var cachedToken) && cachedToken != null)
-                        return cachedToken;
-
-                    var tokenRequestContext = new TokenRequestContext([resource]);
-                    var token = await credential.GetTokenAsync(tokenRequestContext, default);
-
-                    // Set expiration 5 minutes before actual expiry, but never in the past
-                    var expiresOn = token.ExpiresOn.UtcDateTime;
-                    var now = DateTime.UtcNow;
-                    var expiration = expiresOn - TimeSpan.FromMinutes(5);
-                    if (expiration <= now)
-                    {
-                        // If token lifetime is less than 5 minutes, expire 1 minute before, or immediately if needed
-                        expiration = expiresOn > now.AddMinutes(1) ? expiresOn - TimeSpan.FromMinutes(1) : now.AddSeconds(10);
-                    }
-
-                    var cacheEntryOptions = new MemoryCacheEntryOptions
-                    {
-                        AbsoluteExpiration = expiration
-                    };
-                    memoryCache.Set(cacheKey, token.Token, cacheEntryOptions);
-
-                    return token.Token;
-                }
-
-                var serviceClient = new ServiceClient(
-                    new Uri(dataverseUrl),
-                    tokenProviderFunction: TokenProvider);
-
-                if (!serviceClient.IsReady)
-                    throw new InvalidOperationException("ServiceClient is not ready. Check your credentials and Dataverse URL.");
-
-                return serviceClient;
+                var configuration = sp.GetService<IConfiguration>();
+                var defaultCredential = new DefaultAzureCredential();
+                return Internal.ServiceClientBuilder.Build(
+                    options,
+                    memoryCache,
+                    configuration,
+                    defaultCredential
+                );
             });
 
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a ServiceClientFactory for advanced scenarios where new ServiceClient instances are required.
+        /// Existing ServiceClient and interface registrations remain unchanged.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configureOptions">Optional action to configure default DataverseOptions for the factory.</param>
+        /// <param name="defaultCredential">Optional default TokenCredential for the factory.</param>
+        /// <returns>The service collection.</returns>
+        public static IServiceCollection AddDataverseFactory(
+            this IServiceCollection services,
+            Action<DataverseOptions>? configureOptions = null,
+            TokenCredential? defaultCredential = null)
+        {
+            var options = new DataverseOptions();
+            configureOptions?.Invoke(options);
+
+            services.AddMemoryCache();
+
+            services.AddSingleton<IServiceClientFactory>(sp =>
+            {
+                var memoryCache = sp.GetRequiredService<IMemoryCache>();
+                var configuration = sp.GetRequiredService<IConfiguration>();
+                return new ServiceClientFactory(
+                    memoryCache,
+                    configuration,
+                    defaultCredential,
+                    options
+                );
+            });
+
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a Dataverse ServiceClient and all related organization service interfaces for dependency injection.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configureOptions">Action to configure DataverseOptions.</param>
+        /// <returns>The service collection.</returns>
+        public static IServiceCollection AddDataverseWithOrganizationServices(this IServiceCollection services, Action<DataverseOptions>? configureOptions = null)
+        {
+            services.AddDataverse(configureOptions);
+            services.AddSingleton<IOrganizationServiceAsync2>(sp => sp.GetRequiredService<ServiceClient>());
+            services.AddSingleton<IOrganizationServiceAsync>(sp => sp.GetRequiredService<ServiceClient>());
+            services.AddSingleton<IOrganizationService>(sp => sp.GetRequiredService<ServiceClient>());
             return services;
         }
     }
