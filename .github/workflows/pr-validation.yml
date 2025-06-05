@@ -25,7 +25,7 @@ jobs:
         run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o local-nuget
 
       - name: Restore WhoAmI with local NuGet
-        run: dotnet restore DataverseWhoAmI/DataverseWhoAmI.csproj
+        run: dotnet restore DataverseWhoAmI/DataverseWhoAmI.csproj --no-cache --force-evaluate
 
       - name: Build WhoAmI
         run: dotnet build DataverseWhoAmI/DataverseWhoAmI.csproj --configuration Release --no-restore
