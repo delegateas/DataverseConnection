@@ -23,6 +23,3 @@ jobs:
 
       - name: Pack DataverseConnection
         run: dotnet pack DataverseConnection/DataverseConnection.csproj --configuration Release --no-build -o out
-
-      - name: Pack DataverseWhoAmI
-        run: dotnet pack DataverseWhoAmI/DataverseWhoAmI.csproj --configuration Release --no-build -o out
