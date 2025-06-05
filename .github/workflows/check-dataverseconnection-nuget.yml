@@ -23,3 +23,5 @@ jobs:
 
       - name: Run DataverseWhoAmI
         run: dotnet run --project DataverseWhoAmI/DataverseWhoAmI.csproj
+        env:
+          DATAVERSE_URL: ${{ secrets.DATAVERSE_URL }}
