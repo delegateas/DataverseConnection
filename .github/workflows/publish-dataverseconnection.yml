@@ -32,3 +32,20 @@ jobs:
 
       - name: Publish to nuget.org
         run: dotnet nuget push out/*.nupkg --api-key ${{ secrets.NUGET_API_KEY }} --source https://api.nuget.org/v3/index.json --skip-duplicate
+
+      - name: Wait for NuGet package to be available
+        run: |
+          for i in {1..10}; do
+            dotnet add DataverseWhoAmI/DataverseWhoAmI.csproj package DataverseConnection --version ${{ env.VERSION }} && break
+            echo "NuGet package version ${{ env.VERSION }} not available yet. Retrying in 10 seconds..."
+            sleep 10
+          done
+
+      - name: Restore DataverseWhoAmI
+        run: dotnet restore DataverseWhoAmI/DataverseWhoAmI.csproj
+
+      - name: Build DataverseWhoAmI
+        run: dotnet build DataverseWhoAmI/DataverseWhoAmI.csproj --configuration Release --no-restore
+
+      - name: Run DataverseWhoAmI
+        run: dotnet run --project DataverseWhoAmI/DataverseWhoAmI.csproj
