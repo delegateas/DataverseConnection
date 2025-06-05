@@ -6,6 +6,7 @@ using Microsoft.Extensions.DependencyInjection;
 using Microsoft.PowerPlatform.Dataverse.Client;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Xrm.Sdk;
 
 namespace DataverseConnection
 {
@@ -101,6 +102,21 @@ namespace DataverseConnection
                 return serviceClient;
             });
 
+            return services;
+        }
+
+        /// <summary>
+        /// Registers a Dataverse ServiceClient and all related organization service interfaces for dependency injection.
+        /// </summary>
+        /// <param name="services">The service collection.</param>
+        /// <param name="configureOptions">Action to configure DataverseOptions.</param>
+        /// <returns>The service collection.</returns>
+        public static IServiceCollection AddDataverseWithOrganizationServices(this IServiceCollection services, Action<DataverseOptions>? configureOptions = null)
+        {
+            services.AddDataverse(configureOptions);
+            services.AddSingleton<IOrganizationServiceAsync2>(sp => sp.GetRequiredService<ServiceClient>());
+            services.AddSingleton<IOrganizationServiceAsync>(sp => sp.GetRequiredService<ServiceClient>());
+            services.AddSingleton<IOrganizationService>(sp => sp.GetRequiredService<ServiceClient>());
             return services;
         }
     }
