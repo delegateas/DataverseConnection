@@ -3,6 +3,9 @@ name: Check DataverseConnection NuGet
 on:
   workflow_dispatch:
 
+permissions:
+  id-token: write
+  contents: read
 jobs:
   check-nuget:
     runs-on: ubuntu-latest
