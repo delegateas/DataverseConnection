@@ -12,6 +12,9 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Ensure local-nuget directory exists
+        run: mkdir -p local-nuget
+
       - name: Setup .NET
         uses: actions/setup-dotnet@v4
         with:
