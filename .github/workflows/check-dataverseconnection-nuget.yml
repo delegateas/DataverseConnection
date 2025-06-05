@@ -33,5 +33,5 @@ jobs:
         with:
           azcliversion: latest
           inlineScript: dotnet run --project DataverseWhoAmI/DataverseWhoAmI.csproj
-          env:
-            DATAVERSE_URL: ${{ secrets.DATAVERSE_URL }}
+        env:
+          DATAVERSE_URL: ${{ secrets.DATAVERSE_URL }}
