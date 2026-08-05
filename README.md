@@ -2,7 +2,7 @@
 
 ## Overview
 
-**DataverseConnection** is a .NET 8 class library that provides reusable, dependency-injectable connection logic for Microsoft Dataverse. It supports an explicitly provided `TokenCredential` and selectable Azure Identity credential types.
+**DataverseConnection** is a .NET 8 class library that provides reusable, dependency-injectable connection logic for Microsoft Dataverse. It is opinionated about interactive authentication: when used from the CLI you choose between three human-friendly credential types, while library callers can still plug in any `TokenCredential`.
 
 The included `DataverseWhoAmI` console application demonstrates the library and verifies connectivity.
 
@@ -10,13 +10,13 @@ The included `DataverseWhoAmI` console application demonstrates the library and 
 
 - Reusable .NET 8 library for Dataverse connectivity
 - Dependency injection through `AddDataverse`, `AddDataverseWithOrganizationServices`, and `AddDataverseFactory`
-- Selectable Azure Identity authentication:
-  - `DefaultAzureCredential`
-  - `AzureCliCredential`
+- Three opinionated Azure Identity credential types:
+  - `InteractiveBrowserCredential` (**default**)
   - `DeviceCodeCredential`
-  - `InteractiveBrowserCredential`
-  - Any explicitly supplied `TokenCredential`
+  - `AzureCliCredential`
+- Any explicitly supplied `TokenCredential` when calling the library directly (for example `DefaultAzureCredential` or a service principal)
 - Credential-specific Azure Identity options
+- Persistent token caching by default for the interactive credentials, so you log in as rarely as possible
 - Token caching isolated by credential instance and Dataverse resource
 - Cross-platform support for Windows, Linux, and macOS
 
@@ -41,11 +41,17 @@ services.AddDataverse(options =>
 });
 ```
 
-If no credential type or custom credential is specified, the library preserves its previous behavior and uses `DefaultAzureCredential`.
+If no credential type or custom credential is specified, the library uses `InteractiveBrowserCredential` — a person running the tool from a computer can always complete a browser sign-in.
 
 ## Selecting a credential type
 
-Set `DataverseOptions.CredentialType` to force the connection to use one Azure Identity credential implementation. Selecting a type does not create a fallback chain.
+Set `DataverseOptions.CredentialType` to one of the three opinionated Azure Identity credentials. Selecting a type does not create a fallback chain.
+
+| Value | Credential | Notes |
+| --- | --- | --- |
+| `InteractiveBrowserCredential` (default) | `InteractiveBrowserCredential` | Opens a browser sign-in; persistent token cache by default. |
+| `DeviceCodeCredential` | `DeviceCodeCredential` | Prints a code to sign in from any device; persistent token cache by default. |
+| `AzureCliCredential` | `AzureCliCredential` | Reuses an existing `az login` session (the `az` CLI owns its own cache). |
 
 ### Azure CLI only
 
@@ -110,29 +116,17 @@ services.AddDataverse(options =>
 });
 ```
 
-This forces the library to use `InteractiveBrowserCredential` instead of trying credentials from the `DefaultAzureCredential` chain. Azure Identity may still reuse authentication cached by the credential instance or browser session.
+When you do **not** supply `InteractiveBrowserCredentialOptions`, the library enables persistent token caching automatically (see [Persistent token caching](#persistent-token-caching)). Supplying your own options means the library uses them as-is and does not add caching on your behalf.
 
-### DefaultAzureCredential with custom options
+## Providing a custom TokenCredential
+
+The three built-in types are the opinionated choices for the CLI. When calling the library directly you are not limited to them: set `DataverseOptions.TokenCredential` to any credential — for example `DefaultAzureCredential`, a service principal, or a managed identity. An explicitly supplied `TokenCredential` always takes precedence over `CredentialType` and all credential-specific options.
 
 ```csharp
 using Azure.Identity;
 
-services.AddDataverse(options =>
-{
-    options.CredentialType = DataverseCredentialType.DefaultAzureCredential;
-    options.DefaultAzureCredentialOptions = new DefaultAzureCredentialOptions
-    {
-        TenantId = "<tenant-id>"
-    };
-});
-```
-
-## Providing a custom TokenCredential
-
-An explicitly supplied `TokenCredential` always takes precedence over `CredentialType` and all credential-specific options.
-
-```csharp
-TokenCredential credential = GetCredential();
+// Use DefaultAzureCredential (or any TokenCredential) when hosting the library yourself.
+TokenCredential credential = new DefaultAzureCredential();
 
 services.AddDataverse(options =>
 {
@@ -190,7 +184,13 @@ var interactiveClient = factory.CreateClient(new DataverseOptions
 });
 ```
 
-The optional `defaultCredential` argument to `AddDataverseFactory` is used only when `DefaultAzureCredential` is selected. A per-client `DataverseOptions.TokenCredential` still has the highest precedence.
+To inject a custom credential into the factory, set `DataverseOptions.TokenCredential` in the `configureOptions` callback (or per client via `CreateClient`). A per-client `DataverseOptions.TokenCredential` always has the highest precedence.
+
+## Persistent token caching
+
+For `InteractiveBrowserCredential` and `DeviceCodeCredential`, the library enables persistent token caching by default (when you do not pass your own credential-specific options). Tokens and the signed-in account are stored under `~/.dataverseconnection`, so subsequent runs — including separate CLI invocations — acquire tokens silently instead of prompting again. `AzureCliCredential` is unaffected because the `az` CLI manages its own cache.
+
+The on-disk cache is encrypted using the operating system keychain (DPAPI on Windows, Keychain on macOS, **libsecret on Linux/WSL**). If encrypted storage is unavailable — common on headless Linux or WSL without libsecret — the library falls back to a non-persistent credential that prompts on every run, rather than writing tokens to disk unencrypted.
 
 ## Configuration
 
@@ -198,9 +198,12 @@ When `DataverseOptions.DataverseUrl` is empty, the library reads `DATAVERSE_URL`
 
 ```json
 {
-  "DATAVERSE_URL": "https://yourorg.crm4.dynamics.com"
+  "DATAVERSE_URL": "https://yourorg.crm4.dynamics.com",
+  "DATAVERSE_CREDENTIAL_TYPE": "browser"
 }
 ```
+
+`DATAVERSE_CREDENTIAL_TYPE` is optional and accepts `browser`, `devicecode`, or `azurecli`.
 
 ## WhoAmI verification tool
 

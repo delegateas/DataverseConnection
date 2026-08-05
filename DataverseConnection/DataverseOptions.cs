@@ -9,11 +9,6 @@ namespace DataverseConnection
     public enum DataverseCredentialType
     {
         /// <summary>
-        /// Uses <see cref="DefaultAzureCredential"/>.
-        /// </summary>
-        DefaultAzureCredential = 0,
-
-        /// <summary>
         /// Uses <see cref="AzureCliCredential"/> exclusively.
         /// </summary>
         AzureCliCredential = 1,
@@ -24,7 +19,7 @@ namespace DataverseConnection
         DeviceCodeCredential = 2,
 
         /// <summary>
-        /// Uses <see cref="InteractiveBrowserCredential"/> exclusively.
+        /// Uses <see cref="InteractiveBrowserCredential"/> exclusively. This is the default.
         /// </summary>
         InteractiveBrowserCredential = 3
     }
@@ -41,21 +36,17 @@ namespace DataverseConnection
 
         /// <summary>
         /// The Azure credential type to use when <see cref="TokenCredential"/> is not set.
-        /// The default is <see cref="DataverseCredentialType.DefaultAzureCredential"/>.
+        /// The default is <see cref="DataverseCredentialType.InteractiveBrowserCredential"/>.
         /// </summary>
-        public DataverseCredentialType CredentialType { get; set; } = DataverseCredentialType.DefaultAzureCredential;
+        public DataverseCredentialType CredentialType { get; set; } = DataverseCredentialType.InteractiveBrowserCredential;
 
         /// <summary>
         /// An explicitly provided Azure credential. When set, this takes precedence over
-        /// <see cref="CredentialType"/> and all credential-specific options.
+        /// <see cref="CredentialType"/> and all credential-specific options. Use this to plug in
+        /// any credential (for example, <see cref="DefaultAzureCredential"/> or a service principal)
+        /// when calling the library directly.
         /// </summary>
         public TokenCredential? TokenCredential { get; set; }
-
-        /// <summary>
-        /// Options used when <see cref="CredentialType"/> is
-        /// <see cref="DataverseCredentialType.DefaultAzureCredential"/>.
-        /// </summary>
-        public DefaultAzureCredentialOptions? DefaultAzureCredentialOptions { get; set; }
 
         /// <summary>
         /// Options used when <see cref="CredentialType"/> is

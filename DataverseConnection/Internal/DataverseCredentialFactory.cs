@@ -9,9 +9,7 @@ namespace DataverseConnection.Internal
     /// </summary>
     internal static class DataverseCredentialFactory
     {
-        public static TokenCredential Create(
-            DataverseOptions options,
-            TokenCredential? defaultCredential = null)
+        public static TokenCredential Create(DataverseOptions options)
         {
             ArgumentNullException.ThrowIfNull(options);
 
@@ -20,22 +18,21 @@ namespace DataverseConnection.Internal
 
             return options.CredentialType switch
             {
-                DataverseCredentialType.DefaultAzureCredential =>
-                    defaultCredential ?? CreateDefaultAzureCredential(options.DefaultAzureCredentialOptions),
-
                 DataverseCredentialType.AzureCliCredential =>
                     options.AzureCliCredentialOptions is null
                         ? new AzureCliCredential()
                         : new AzureCliCredential(options.AzureCliCredentialOptions),
 
+                // Interactive credentials use persistent token caching by default so the user logs in
+                // as rarely as possible. Caller-supplied options are respected as-is.
                 DataverseCredentialType.DeviceCodeCredential =>
                     options.DeviceCodeCredentialOptions is null
-                        ? new DeviceCodeCredential()
+                        ? PersistentCredentialCache.CreateDeviceCode()
                         : new DeviceCodeCredential(options.DeviceCodeCredentialOptions),
 
                 DataverseCredentialType.InteractiveBrowserCredential =>
                     options.InteractiveBrowserCredentialOptions is null
-                        ? new InteractiveBrowserCredential()
+                        ? PersistentCredentialCache.CreateInteractiveBrowser()
                         : new InteractiveBrowserCredential(options.InteractiveBrowserCredentialOptions),
 
                 _ => throw new ArgumentOutOfRangeException(
@@ -43,14 +40,6 @@ namespace DataverseConnection.Internal
                     options.CredentialType,
                     "Unsupported Dataverse credential type.")
             };
-        }
-
-        private static DefaultAzureCredential CreateDefaultAzureCredential(
-            DefaultAzureCredentialOptions? options)
-        {
-            return options is null
-                ? new DefaultAzureCredential()
-                : new DefaultAzureCredential(options);
         }
     }
 }

@@ -19,11 +19,16 @@ class Program
                 .AddEnvironmentVariables()
                 .Build();
 
+            // Resolve which of the three opinionated credential types to use.
+            // Precedence: DATAVERSE_CREDENTIAL_TYPE config/env > InteractiveBrowser default.
+            var credentialType = ResolveCredentialType(configuration);
+            Console.WriteLine($"Using credential: {credentialType}");
+
             // Setup DI and register ServiceClient and interfaces
             var services = new ServiceCollection();
             services.AddSingleton<IConfiguration>(configuration);
-            services.AddDataverseWithOrganizationServices();
-            services.AddDataverseFactory();
+            services.AddDataverseWithOrganizationServices(o => o.CredentialType = credentialType);
+            services.AddDataverseFactory(o => o.CredentialType = credentialType);
 
             using var serviceProvider = services.BuildServiceProvider();
 
@@ -67,6 +72,44 @@ class Program
             Console.Error.WriteLine("An error occurred while connecting to Dataverse or executing WhoAmIRequest:");
             Console.Error.WriteLine(ex.Message);
             return 99;
+        }
+    }
+
+    static DataverseCredentialType ResolveCredentialType(IConfiguration configuration)
+    {
+        // Configured via appsettings.json or the DATAVERSE_CREDENTIAL_TYPE environment variable.
+        var configured = configuration["DATAVERSE_CREDENTIAL_TYPE"];
+        if (string.IsNullOrWhiteSpace(configured))
+            return DataverseCredentialType.InteractiveBrowserCredential;
+
+        if (TryParseCredentialType(configured, out var credentialType))
+            return credentialType;
+
+        throw new ArgumentException(
+            $"Unknown DATAVERSE_CREDENTIAL_TYPE '{configured}'. Valid values: browser, devicecode, azurecli.");
+    }
+
+    static bool TryParseCredentialType(string value, out DataverseCredentialType credentialType)
+    {
+        switch (value.Trim().ToLowerInvariant())
+        {
+            case "browser":
+            case "interactive":
+            case "interactivebrowser":
+                credentialType = DataverseCredentialType.InteractiveBrowserCredential;
+                return true;
+            case "device":
+            case "devicecode":
+                credentialType = DataverseCredentialType.DeviceCodeCredential;
+                return true;
+            case "az":
+            case "cli":
+            case "azurecli":
+                credentialType = DataverseCredentialType.AzureCliCredential;
+                return true;
+            default:
+                credentialType = default;
+                return false;
         }
     }
 

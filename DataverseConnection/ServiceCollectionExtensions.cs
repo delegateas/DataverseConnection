@@ -1,5 +1,4 @@
 using System;
-using Azure.Core;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
@@ -47,16 +46,14 @@ namespace DataverseConnection
         /// Existing ServiceClient and interface registrations remain unchanged.
         /// </summary>
         /// <param name="services">The service collection.</param>
-        /// <param name="configureOptions">Optional action to configure default DataverseOptions for the factory.</param>
-        /// <param name="defaultCredential">
-        /// Optional credential used when the selected credential type is DefaultAzureCredential.
-        /// Per-client DataverseOptions.TokenCredential values still take precedence.
+        /// <param name="configureOptions">
+        /// Optional action to configure default DataverseOptions for the factory. To use a custom
+        /// credential, set <see cref="DataverseOptions.TokenCredential"/> here.
         /// </param>
         /// <returns>The service collection.</returns>
         public static IServiceCollection AddDataverseFactory(
             this IServiceCollection services,
-            Action<DataverseOptions>? configureOptions = null,
-            TokenCredential? defaultCredential = null)
+            Action<DataverseOptions>? configureOptions = null)
         {
             var options = new DataverseOptions();
             configureOptions?.Invoke(options);
@@ -70,7 +67,6 @@ namespace DataverseConnection
                 return new ServiceClientFactory(
                     memoryCache,
                     configuration,
-                    defaultCredential,
                     options
                 );
             });

@@ -13,23 +13,18 @@ namespace DataverseConnection
     {
         private readonly IMemoryCache _memoryCache;
         private readonly IConfiguration _configuration;
-        private readonly TokenCredential? _providedDefaultCredential;
         private readonly TokenCredential _defaultOptionsCredential;
         private readonly DataverseOptions _defaultOptions;
 
         public ServiceClientFactory(
             IMemoryCache memoryCache,
             IConfiguration configuration,
-            TokenCredential? defaultCredential = null,
             DataverseOptions? defaultOptions = null)
         {
             _memoryCache = memoryCache;
             _configuration = configuration;
-            _providedDefaultCredential = defaultCredential;
             _defaultOptions = defaultOptions ?? new DataverseOptions();
-            _defaultOptionsCredential = Internal.DataverseCredentialFactory.Create(
-                _defaultOptions,
-                _providedDefaultCredential);
+            _defaultOptionsCredential = Internal.DataverseCredentialFactory.Create(_defaultOptions);
         }
 
         public ServiceClient CreateClient(DataverseOptions? options = null)
@@ -37,7 +32,7 @@ namespace DataverseConnection
             var effectiveOptions = options ?? _defaultOptions;
             var credential = options is null
                 ? _defaultOptionsCredential
-                : Internal.DataverseCredentialFactory.Create(options, _providedDefaultCredential);
+                : Internal.DataverseCredentialFactory.Create(options);
 
             return Internal.ServiceClientBuilder.Build(
                 effectiveOptions,

@@ -7,14 +7,60 @@ namespace DataverseConnection.Tests;
 
 public class DataverseCredentialFactoryTests
 {
+    [Fact]
+    public void DefaultCredentialType_IsInteractiveBrowser()
+    {
+        Assert.Equal(
+            DataverseCredentialType.InteractiveBrowserCredential,
+            new DataverseOptions().CredentialType);
+    }
+
+    [Fact]
+    public void Create_ReturnsAzureCliCredential()
+    {
+        var options = new DataverseOptions
+        {
+            CredentialType = DataverseCredentialType.AzureCliCredential
+        };
+
+        var credential = DataverseCredentialFactory.Create(options);
+
+        Assert.IsType<AzureCliCredential>(credential);
+    }
+
+    [Fact]
+    public void Create_ReturnsDeviceCodeCredential_WhenCallerSuppliesOptions()
+    {
+        var options = new DataverseOptions
+        {
+            CredentialType = DataverseCredentialType.DeviceCodeCredential,
+            DeviceCodeCredentialOptions = new DeviceCodeCredentialOptions()
+        };
+
+        var credential = DataverseCredentialFactory.Create(options);
+
+        Assert.IsType<DeviceCodeCredential>(credential);
+    }
+
+    [Fact]
+    public void Create_ReturnsInteractiveBrowserCredential_WhenCallerSuppliesOptions()
+    {
+        var options = new DataverseOptions
+        {
+            CredentialType = DataverseCredentialType.InteractiveBrowserCredential,
+            InteractiveBrowserCredentialOptions = new InteractiveBrowserCredentialOptions()
+        };
+
+        var credential = DataverseCredentialFactory.Create(options);
+
+        Assert.IsType<InteractiveBrowserCredential>(credential);
+    }
+
     [Theory]
-    [InlineData(DataverseCredentialType.DefaultAzureCredential, typeof(DefaultAzureCredential))]
-    [InlineData(DataverseCredentialType.AzureCliCredential, typeof(AzureCliCredential))]
-    [InlineData(DataverseCredentialType.DeviceCodeCredential, typeof(DeviceCodeCredential))]
-    [InlineData(DataverseCredentialType.InteractiveBrowserCredential, typeof(InteractiveBrowserCredential))]
-    public void Create_ReturnsSelectedCredentialType(
-        DataverseCredentialType credentialType,
-        Type expectedType)
+    [InlineData(DataverseCredentialType.DeviceCodeCredential)]
+    [InlineData(DataverseCredentialType.InteractiveBrowserCredential)]
+    public void Create_WrapsInteractiveCredentials_WithPersistentCache_ByDefault(
+        DataverseCredentialType credentialType)
     {
         var options = new DataverseOptions
         {
@@ -23,37 +69,8 @@ public class DataverseCredentialFactoryTests
 
         var credential = DataverseCredentialFactory.Create(options);
 
-        Assert.IsType(expectedType, credential);
-    }
-
-    [Fact]
-    public void Create_UsesCredentialSpecificOptions()
-    {
-        var defaultCredential = DataverseCredentialFactory.Create(new DataverseOptions
-        {
-            CredentialType = DataverseCredentialType.DefaultAzureCredential,
-            DefaultAzureCredentialOptions = new DefaultAzureCredentialOptions()
-        });
-        var azureCliCredential = DataverseCredentialFactory.Create(new DataverseOptions
-        {
-            CredentialType = DataverseCredentialType.AzureCliCredential,
-            AzureCliCredentialOptions = new AzureCliCredentialOptions()
-        });
-        var deviceCodeCredential = DataverseCredentialFactory.Create(new DataverseOptions
-        {
-            CredentialType = DataverseCredentialType.DeviceCodeCredential,
-            DeviceCodeCredentialOptions = new DeviceCodeCredentialOptions()
-        });
-        var interactiveBrowserCredential = DataverseCredentialFactory.Create(new DataverseOptions
-        {
-            CredentialType = DataverseCredentialType.InteractiveBrowserCredential,
-            InteractiveBrowserCredentialOptions = new InteractiveBrowserCredentialOptions()
-        });
-
-        Assert.IsType<DefaultAzureCredential>(defaultCredential);
-        Assert.IsType<AzureCliCredential>(azureCliCredential);
-        Assert.IsType<DeviceCodeCredential>(deviceCodeCredential);
-        Assert.IsType<InteractiveBrowserCredential>(interactiveBrowserCredential);
+        // The interactive credentials are wrapped so tokens persist across runs by default.
+        Assert.IsType<PersistentAuthCredential>(credential);
     }
 
     [Fact]
@@ -69,34 +86,6 @@ public class DataverseCredentialFactoryTests
         var credential = DataverseCredentialFactory.Create(options);
 
         Assert.Same(explicitCredential, credential);
-    }
-
-    [Fact]
-    public void Create_UsesProvidedDefaultCredentialForDefaultSelection()
-    {
-        var providedDefaultCredential = new TestTokenCredential();
-        var options = new DataverseOptions
-        {
-            CredentialType = DataverseCredentialType.DefaultAzureCredential
-        };
-
-        var credential = DataverseCredentialFactory.Create(options, providedDefaultCredential);
-
-        Assert.Same(providedDefaultCredential, credential);
-    }
-
-    [Fact]
-    public void Create_DoesNotUseProvidedDefaultCredentialForForcedSelection()
-    {
-        var providedDefaultCredential = new TestTokenCredential();
-        var options = new DataverseOptions
-        {
-            CredentialType = DataverseCredentialType.DeviceCodeCredential
-        };
-
-        var credential = DataverseCredentialFactory.Create(options, providedDefaultCredential);
-
-        Assert.IsType<DeviceCodeCredential>(credential);
     }
 
     [Fact]
