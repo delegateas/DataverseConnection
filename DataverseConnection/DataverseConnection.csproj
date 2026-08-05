@@ -1,11 +1,11 @@
-﻿<Project Sdk="Microsoft.NET.Sdk">
+<Project Sdk="Microsoft.NET.Sdk">
 
   <PropertyGroup>
     <TargetFramework>net8.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>
     <Nullable>enable</Nullable>
     <PackageId>DataverseConnection</PackageId>
-    <Authors>Magnus Gether Sørensen</Authors>
+    <Authors>Magnus Gether S�rensen</Authors>
     <Company>Delegate A/S</Company>
     <Description>Reusable connection logic for Microsoft Dataverse.</Description>
     <PackageTags>dataverse;connection;crm</PackageTags>
@@ -18,4 +18,7 @@
     <PackageReference Include="Microsoft.Extensions.DependencyInjection" Version="8.0.0" />
   </ItemGroup>
 
+  <ItemGroup>
+    <InternalsVisibleTo Include="DataverseConnection.Tests" />
+  </ItemGroup>
 </Project>

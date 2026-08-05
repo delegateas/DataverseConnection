@@ -1,31 +1,13 @@
 using System;
-using System.Threading.Tasks;
 using Azure.Core;
-using Azure.Identity;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.PowerPlatform.Dataverse.Client;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Xrm.Sdk;
 
 namespace DataverseConnection
 {
-    /// <summary>
-    /// Options for configuring Dataverse connection.
-    /// </summary>
-    public class DataverseOptions
-    {
-        /// <summary>
-        /// The Dataverse environment URL (e.g., https://org.crm4.dynamics.com).
-        /// </summary>
-        public string DataverseUrl { get; set; } = string.Empty;
-
-        /// <summary>
-        /// The Azure TokenCredential to use. If not set, DefaultAzureCredential is used.
-        /// </summary>
-        public TokenCredential? TokenCredential { get; set; }
-    }
-
     /// <summary>
     /// Extension methods for IServiceCollection to add Dataverse ServiceClient.
     /// </summary>
@@ -42,19 +24,18 @@ namespace DataverseConnection
             var options = new DataverseOptions();
             configureOptions?.Invoke(options);
 
-            // Ensure MemoryCache is registered
             services.AddMemoryCache();
 
             services.AddSingleton(sp =>
             {
                 var memoryCache = sp.GetRequiredService<IMemoryCache>();
                 var configuration = sp.GetService<IConfiguration>();
-                var defaultCredential = new DefaultAzureCredential();
+                var credential = Internal.DataverseCredentialFactory.Create(options);
                 return Internal.ServiceClientBuilder.Build(
                     options,
                     memoryCache,
                     configuration,
-                    defaultCredential
+                    credential
                 );
             });
 
@@ -67,7 +48,10 @@ namespace DataverseConnection
         /// </summary>
         /// <param name="services">The service collection.</param>
         /// <param name="configureOptions">Optional action to configure default DataverseOptions for the factory.</param>
-        /// <param name="defaultCredential">Optional default TokenCredential for the factory.</param>
+        /// <param name="defaultCredential">
+        /// Optional credential used when the selected credential type is DefaultAzureCredential.
+        /// Per-client DataverseOptions.TokenCredential values still take precedence.
+        /// </param>
         /// <returns>The service collection.</returns>
         public static IServiceCollection AddDataverseFactory(
             this IServiceCollection services,

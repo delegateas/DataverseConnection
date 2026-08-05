@@ -1,7 +1,4 @@
-using System;
-using System.Threading.Tasks;
 using Azure.Core;
-using Azure.Identity;
 using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Extensions.Configuration;
 using Microsoft.PowerPlatform.Dataverse.Client;
@@ -16,7 +13,8 @@ namespace DataverseConnection
     {
         private readonly IMemoryCache _memoryCache;
         private readonly IConfiguration _configuration;
-        private readonly TokenCredential _defaultCredential;
+        private readonly TokenCredential? _providedDefaultCredential;
+        private readonly TokenCredential _defaultOptionsCredential;
         private readonly DataverseOptions _defaultOptions;
 
         public ServiceClientFactory(
@@ -27,19 +25,25 @@ namespace DataverseConnection
         {
             _memoryCache = memoryCache;
             _configuration = configuration;
-            _defaultCredential = defaultCredential ?? new DefaultAzureCredential();
+            _providedDefaultCredential = defaultCredential;
             _defaultOptions = defaultOptions ?? new DataverseOptions();
+            _defaultOptionsCredential = Internal.DataverseCredentialFactory.Create(
+                _defaultOptions,
+                _providedDefaultCredential);
         }
 
         public ServiceClient CreateClient(DataverseOptions? options = null)
         {
             var effectiveOptions = options ?? _defaultOptions;
+            var credential = options is null
+                ? _defaultOptionsCredential
+                : Internal.DataverseCredentialFactory.Create(options, _providedDefaultCredential);
 
             return Internal.ServiceClientBuilder.Build(
                 effectiveOptions,
                 _memoryCache,
                 _configuration,
-                _defaultCredential
+                credential
             );
         }
     }

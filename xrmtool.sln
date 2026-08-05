@@ -6,6 +6,8 @@ Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataverseConnection", "Data
 EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataverseWhoAmI", "DataverseWhoAmI\DataverseWhoAmI.csproj", "{140A6497-CCCA-9B40-FB4F-4B1B86032F58}"
 EndProject
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "DataverseConnection.Tests", "DataverseConnection.Tests\DataverseConnection.Tests.csproj", "{48AFC5F9-3775-437E-AB63-213FF7F733EA}"
+EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
 		Debug|Any CPU = Debug|Any CPU
@@ -20,6 +22,10 @@ Global
 		{140A6497-CCCA-9B40-FB4F-4B1B86032F58}.Debug|Any CPU.Build.0 = Debug|Any CPU
 		{140A6497-CCCA-9B40-FB4F-4B1B86032F58}.Release|Any CPU.ActiveCfg = Release|Any CPU
 		{140A6497-CCCA-9B40-FB4F-4B1B86032F58}.Release|Any CPU.Build.0 = Release|Any CPU
+		{48AFC5F9-3775-437E-AB63-213FF7F733EA}.Debug|Any CPU.ActiveCfg = Debug|Any CPU
+		{48AFC5F9-3775-437E-AB63-213FF7F733EA}.Debug|Any CPU.Build.0 = Debug|Any CPU
+		{48AFC5F9-3775-437E-AB63-213FF7F733EA}.Release|Any CPU.ActiveCfg = Release|Any CPU
+		{48AFC5F9-3775-437E-AB63-213FF7F733EA}.Release|Any CPU.Build.0 = Release|Any CPU
 	EndGlobalSection
 	GlobalSection(SolutionProperties) = preSolution
 		HideSolutionNode = FALSE
