@@ -20,15 +20,19 @@ namespace DataverseConnection
         /// <returns>The service collection.</returns>
         public static IServiceCollection AddDataverse(this IServiceCollection services, Action<DataverseOptions>? configureOptions = null)
         {
-            var options = new DataverseOptions();
-            configureOptions?.Invoke(options);
-
             services.AddMemoryCache();
 
             services.AddSingleton(sp =>
             {
                 var memoryCache = sp.GetRequiredService<IMemoryCache>();
                 var configuration = sp.GetService<IConfiguration>();
+
+                // Defaults come from application settings; the configureOptions override wins last.
+                var options = new DataverseOptions();
+                if (configuration is not null)
+                    Internal.DataverseOptionsBinder.Bind(options, configuration);
+                configureOptions?.Invoke(options);
+
                 var credential = Internal.DataverseCredentialFactory.Create(options);
                 return Internal.ServiceClientBuilder.Build(
                     options,
@@ -55,15 +59,18 @@ namespace DataverseConnection
             this IServiceCollection services,
             Action<DataverseOptions>? configureOptions = null)
         {
-            var options = new DataverseOptions();
-            configureOptions?.Invoke(options);
-
             services.AddMemoryCache();
 
             services.AddSingleton<IServiceClientFactory>(sp =>
             {
                 var memoryCache = sp.GetRequiredService<IMemoryCache>();
                 var configuration = sp.GetRequiredService<IConfiguration>();
+
+                // Defaults come from application settings; the configureOptions override wins last.
+                var options = new DataverseOptions();
+                Internal.DataverseOptionsBinder.Bind(options, configuration);
+                configureOptions?.Invoke(options);
+
                 return new ServiceClientFactory(
                     memoryCache,
                     configuration,

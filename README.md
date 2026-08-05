@@ -43,6 +43,8 @@ services.AddDataverse(options =>
 
 If no credential type or custom credential is specified, the library uses `InteractiveBrowserCredential` — a person running the tool from a computer can always complete a browser sign-in.
 
+> **Tip:** You usually don't need to configure anything in code. If you register an `IConfiguration`, the library reads the Dataverse URL and credential type from your app settings automatically — see [Configuration](#configuration). Use the `configureOptions` callback only when a tool needs something specific.
+
 ## Selecting a credential type
 
 Set `DataverseOptions.CredentialType` to one of the three opinionated Azure Identity credentials. Selecting a type does not create a fallback chain.
@@ -194,7 +196,34 @@ The on-disk cache is encrypted using the operating system keychain (DPAPI on Win
 
 ## Configuration
 
-When `DataverseOptions.DataverseUrl` is empty, the library reads `DATAVERSE_URL` from the registered `IConfiguration`:
+By default the library reads its settings from the registered `IConfiguration`, so a tool does **not** have to write any authentication code — it just registers an `IConfiguration` and calls one of the `AddDataverse*` methods. Every tool can share the same app settings and behave consistently without reinventing the wiring.
+
+Register a configuration source and the Dataverse services:
+
+```csharp
+using DataverseConnection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json", optional: true)
+    .AddEnvironmentVariables()
+    .Build();
+
+var services = new ServiceCollection();
+services.AddSingleton<IConfiguration>(configuration);
+
+// URL and credential type are read from configuration automatically.
+services.AddDataverseWithOrganizationServices();
+services.AddDataverseFactory();
+```
+
+The library reads two flat keys (from `appsettings.json`, environment variables, or any other configuration source):
+
+| Key | Required | Values |
+| --- | --- | --- |
+| `DATAVERSE_URL` | Yes (unless set on `DataverseOptions.DataverseUrl`) | The environment URL, e.g. `https://yourorg.crm4.dynamics.com`. |
+| `DATAVERSE_CREDENTIAL_TYPE` | No (defaults to `browser`) | `browser`, `devicecode`, or `azcli` (case-insensitive). |
 
 ```json
 {
@@ -203,7 +232,29 @@ When `DataverseOptions.DataverseUrl` is empty, the library reads `DATAVERSE_URL`
 }
 ```
 
-`DATAVERSE_CREDENTIAL_TYPE` is optional and accepts `browser`, `devicecode`, or `azurecli`.
+The credential-type strings map to the [opinionated credential types](#selecting-a-credential-type):
+
+| Config value | Credential type |
+| --- | --- |
+| `browser` (default) | `InteractiveBrowserCredential` |
+| `devicecode` | `DeviceCodeCredential` |
+| `azcli` | `AzureCliCredential` |
+
+An unrecognized `DATAVERSE_CREDENTIAL_TYPE` throws at startup, listing the valid values.
+
+### Overriding the defaults
+
+Values read from configuration are just the defaults. To do something specific — a fixed credential type, a custom `TokenCredential`, credential-specific options, or a hard-coded URL — pass a `configureOptions` callback. It runs **after** the configuration is applied, so anything you set there wins:
+
+```csharp
+services.AddDataverseWithOrganizationServices(options =>
+{
+    // Overrides DATAVERSE_CREDENTIAL_TYPE from configuration.
+    options.CredentialType = DataverseCredentialType.AzureCliCredential;
+});
+```
+
+Because the callback overrides configuration, a tool that needs full control writes only the lines it cares about; everything else still comes from the shared app settings.
 
 ## WhoAmI verification tool
 
