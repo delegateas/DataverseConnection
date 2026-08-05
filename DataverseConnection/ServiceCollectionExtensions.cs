@@ -1,31 +1,12 @@
 using System;
-using System.Threading.Tasks;
-using Azure.Core;
-using Azure.Identity;
+using Microsoft.Extensions.Caching.Memory;
+using Microsoft.Extensions.Configuration;
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.PowerPlatform.Dataverse.Client;
-using Microsoft.Extensions.Configuration;
-using Microsoft.Extensions.Caching.Memory;
 using Microsoft.Xrm.Sdk;
 
 namespace DataverseConnection
 {
-    /// <summary>
-    /// Options for configuring Dataverse connection.
-    /// </summary>
-    public class DataverseOptions
-    {
-        /// <summary>
-        /// The Dataverse environment URL (e.g., https://org.crm4.dynamics.com).
-        /// </summary>
-        public string DataverseUrl { get; set; } = string.Empty;
-
-        /// <summary>
-        /// The Azure TokenCredential to use. If not set, DefaultAzureCredential is used.
-        /// </summary>
-        public TokenCredential? TokenCredential { get; set; }
-    }
-
     /// <summary>
     /// Extension methods for IServiceCollection to add Dataverse ServiceClient.
     /// </summary>
@@ -39,22 +20,25 @@ namespace DataverseConnection
         /// <returns>The service collection.</returns>
         public static IServiceCollection AddDataverse(this IServiceCollection services, Action<DataverseOptions>? configureOptions = null)
         {
-            var options = new DataverseOptions();
-            configureOptions?.Invoke(options);
-
-            // Ensure MemoryCache is registered
             services.AddMemoryCache();
 
             services.AddSingleton(sp =>
             {
                 var memoryCache = sp.GetRequiredService<IMemoryCache>();
                 var configuration = sp.GetService<IConfiguration>();
-                var defaultCredential = new DefaultAzureCredential();
+
+                // Defaults come from application settings; the configureOptions override wins last.
+                var options = new DataverseOptions();
+                if (configuration is not null)
+                    Internal.DataverseOptionsBinder.Bind(options, configuration);
+                configureOptions?.Invoke(options);
+
+                var credential = Internal.DataverseCredentialFactory.Create(options);
                 return Internal.ServiceClientBuilder.Build(
                     options,
                     memoryCache,
                     configuration,
-                    defaultCredential
+                    credential
                 );
             });
 
@@ -66,27 +50,30 @@ namespace DataverseConnection
         /// Existing ServiceClient and interface registrations remain unchanged.
         /// </summary>
         /// <param name="services">The service collection.</param>
-        /// <param name="configureOptions">Optional action to configure default DataverseOptions for the factory.</param>
-        /// <param name="defaultCredential">Optional default TokenCredential for the factory.</param>
+        /// <param name="configureOptions">
+        /// Optional action to configure default DataverseOptions for the factory. To use a custom
+        /// credential, set <see cref="DataverseOptions.TokenCredential"/> here.
+        /// </param>
         /// <returns>The service collection.</returns>
         public static IServiceCollection AddDataverseFactory(
             this IServiceCollection services,
-            Action<DataverseOptions>? configureOptions = null,
-            TokenCredential? defaultCredential = null)
+            Action<DataverseOptions>? configureOptions = null)
         {
-            var options = new DataverseOptions();
-            configureOptions?.Invoke(options);
-
             services.AddMemoryCache();
 
             services.AddSingleton<IServiceClientFactory>(sp =>
             {
                 var memoryCache = sp.GetRequiredService<IMemoryCache>();
                 var configuration = sp.GetRequiredService<IConfiguration>();
+
+                // Defaults come from application settings; the configureOptions override wins last.
+                var options = new DataverseOptions();
+                Internal.DataverseOptionsBinder.Bind(options, configuration);
+                configureOptions?.Invoke(options);
+
                 return new ServiceClientFactory(
                     memoryCache,
                     configuration,
-                    defaultCredential,
                     options
                 );
             });

@@ -1,4 +1,6 @@
 using System;
+using System.Runtime.CompilerServices;
+using System.Threading;
 using System.Threading.Tasks;
 using Azure.Core;
 using Microsoft.Extensions.Caching.Memory;
@@ -12,13 +14,15 @@ namespace DataverseConnection.Internal
     /// </summary>
     internal static class ServiceClientBuilder
     {
+        private static readonly ConditionalWeakTable<TokenCredential, CredentialCacheIdentity> CredentialCacheIdentities = new();
+        private static long _nextCredentialCacheIdentity;
+
         public static ServiceClient Build(
             DataverseOptions options,
             IMemoryCache memoryCache,
             IConfiguration? configuration,
-            TokenCredential defaultCredential)
+            TokenCredential credential)
         {
-            // Determine DataverseUrl: options first, then configuration
             string? dataverseUrl = options.DataverseUrl;
             if (string.IsNullOrWhiteSpace(dataverseUrl))
             {
@@ -28,26 +32,25 @@ namespace DataverseConnection.Internal
             if (string.IsNullOrWhiteSpace(dataverseUrl))
                 throw new InvalidOperationException("DataverseUrl must be provided via options or configuration (DATAVERSE_URL).");
 
-            var credential = options.TokenCredential ?? defaultCredential;
+            var credentialCacheIdentity = CredentialCacheIdentities.GetValue(
+                credential,
+                _ => new CredentialCacheIdentity(Interlocked.Increment(ref _nextCredentialCacheIdentity)));
             var resource = $"{new Uri(dataverseUrl).GetLeftPart(UriPartial.Authority)}/.default";
 
-            // Token provider function for ServiceClient
             async Task<string> TokenProvider(string url)
             {
-                var cacheKey = $"dataverse_token_{resource}";
+                var cacheKey = $"dataverse_token_{credentialCacheIdentity.Value}_{resource}";
                 if (memoryCache.TryGetValue<string>(cacheKey, out var cachedToken) && cachedToken != null)
                     return cachedToken;
 
                 var tokenRequestContext = new TokenRequestContext([resource]);
                 var token = await credential.GetTokenAsync(tokenRequestContext, default);
 
-                // Set expiration 5 minutes before actual expiry, but never in the past
                 var expiresOn = token.ExpiresOn.UtcDateTime;
                 var now = DateTime.UtcNow;
                 var expiration = expiresOn - TimeSpan.FromMinutes(5);
                 if (expiration <= now)
                 {
-                    // If token lifetime is less than 5 minutes, expire 1 minute before, or immediately if needed
                     expiration = expiresOn > now.AddMinutes(1) ? expiresOn - TimeSpan.FromMinutes(1) : now.AddSeconds(10);
                 }
 
@@ -69,5 +72,7 @@ namespace DataverseConnection.Internal
 
             return serviceClient;
         }
+
+        private sealed record CredentialCacheIdentity(long Value);
     }
 }

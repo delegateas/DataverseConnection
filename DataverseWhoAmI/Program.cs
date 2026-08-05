@@ -19,7 +19,9 @@ class Program
                 .AddEnvironmentVariables()
                 .Build();
 
-            // Setup DI and register ServiceClient and interfaces
+            // Setup DI and register ServiceClient and interfaces. The library reads
+            // DATAVERSE_URL and DATAVERSE_CREDENTIAL_TYPE from configuration by default,
+            // so no per-tool authentication code is required.
             var services = new ServiceCollection();
             services.AddSingleton<IConfiguration>(configuration);
             services.AddDataverseWithOrganizationServices();

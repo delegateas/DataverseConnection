@@ -2,156 +2,268 @@
 
 ## Overview
 
-**DataverseConnection** is a .NET 8 class library (NuGet package) that provides secure, reusable, and dependency-injectable connection logic for Microsoft Dataverse. It enables any .NET application or service to connect to Dataverse using modern Azure authentication, with a single line of DI registration.
+**DataverseConnection** is a .NET 8 class library that provides reusable, dependency-injectable connection logic for Microsoft Dataverse. It is opinionated about interactive authentication: when used from the CLI you choose between three human-friendly credential types, while library callers can still plug in any `TokenCredential`.
 
-- **Primary Focus:** The DataverseConnection library and its `AddDataverse` extension method for DI.
-- **Verification Tool:** The included WhoAmI CLI app demonstrates and verifies the library's functionality.
-
----
-
-## Why Use DataverseConnection?
-
-- **Modern, Secure Authentication:** Uses Azure DefaultAzureCredential — no secrets or legacy flows.
-- **Rapid Integration:** Register Dataverse ServiceClient in your DI container with a single extension method.
-- **Reusable:** Designed for use across multiple .NET projects and deployment scenarios.
-- **Automation Ready:** Works seamlessly in CI/CD, cloud, and local development environments.
-- **Extensible:** Built for maintainability and easy extension.
-
----
+The included `DataverseWhoAmI` console application demonstrates the library and verifies connectivity.
 
 ## Features
 
-- Reusable .NET 8 class library for Dataverse connectivity
-- `AddDataverse` extension method for `IServiceCollection` (DI registration)
-- Authenticates using Azure DefaultAzureCredential (supports managed identity, Visual Studio, Azure CLI, etc.)
-- Clear error handling and diagnostics
-- Cross-platform: Windows, Linux, macOS
-
----
-
-## Architecture
-
-```
-DataverseConnection (NuGet Library)
-│
-└── ServiceCollectionExtensions.cs
-      └── AddDataverse (extension method for DI)
-      └── DataverseOptions (configuration)
-      └── Connection logic (encapsulated)
-      
-Example/Verification Tool:
-DataverseWhoAmI (CLI)
-└── Uses DataverseConnection via DI to verify connectivity
-```
-
-- **Separation of Concerns:** Connection logic is decoupled from application logic.
-- **Dependency Injection:** ServiceClient is provided via DI for testability and maintainability.
-
----
+- Reusable .NET 8 library for Dataverse connectivity
+- Dependency injection through `AddDataverse`, `AddDataverseWithOrganizationServices`, and `AddDataverseFactory`
+- Three opinionated Azure Identity credential types:
+  - `InteractiveBrowserCredential` (**default**)
+  - `DeviceCodeCredential`
+  - `AzureCliCredential`
+- Any explicitly supplied `TokenCredential` when calling the library directly (for example `DefaultAzureCredential` or a service principal)
+- Credential-specific Azure Identity options
+- Persistent token caching by default for the interactive credentials, so you log in as rarely as possible
+- Token caching isolated by credential instance and Dataverse resource
+- Cross-platform support for Windows, Linux, and macOS
 
 ## Prerequisites
 
-- [.NET 8 SDK](https://dotnet.microsoft.com/download)
+- .NET 8 SDK
 - Access to a Microsoft Dataverse environment
-- Azure authentication configured (DefaultAzureCredential supported methods)
+- An Azure identity with access to that environment
 
----
-
-## Getting Started
-
-### 1. Reference the NuGet Package
-
-Add a reference to the DataverseConnection NuGet package in your .NET 8 project (or use the project reference if building locally).
-
-### 2. Register Dataverse in DI
+## Basic registration
 
 ```csharp
 using DataverseConnection;
+using Microsoft.Extensions.DependencyInjection;
 
 var services = new ServiceCollection();
+
 services.AddDataverse(options =>
 {
-    // This is optional, by default the url is fetched from DATAVERSE_URL from the configuration
-    options.EnvironmentUrl = "<DataverseEnvironmentUrl>";
+    // Optional when DATAVERSE_URL is available through IConfiguration.
+    options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
 });
 ```
 
-### 3. Resolve and Use ServiceClient
+If no credential type or custom credential is specified, the library uses `InteractiveBrowserCredential` — a person running the tool from a computer can always complete a browser sign-in.
+
+> **Tip:** You usually don't need to configure anything in code. If you register an `IConfiguration`, the library reads the Dataverse URL and credential type from your app settings automatically — see [Configuration](#configuration). Use the `configureOptions` callback only when a tool needs something specific.
+
+## Selecting a credential type
+
+Set `DataverseOptions.CredentialType` to one of the three opinionated Azure Identity credentials. Selecting a type does not create a fallback chain.
+
+| Value | Credential | Notes |
+| --- | --- | --- |
+| `InteractiveBrowserCredential` (default) | `InteractiveBrowserCredential` | Opens a browser sign-in; persistent token cache by default. |
+| `DeviceCodeCredential` | `DeviceCodeCredential` | Prints a code to sign in from any device; persistent token cache by default. |
+| `AzureCliCredential` | `AzureCliCredential` | Reuses an existing `az login` session (the `az` CLI owns its own cache). |
+
+### Azure CLI only
+
+This requires an authenticated Azure CLI session, normally created with `az login`.
 
 ```csharp
-var provider = services.BuildServiceProvider();
-var serviceClient = provider.GetRequiredService<ServiceClient>();
-
-// Use serviceClient for Dataverse operations
+services.AddDataverse(options =>
+{
+    options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
+    options.CredentialType = DataverseCredentialType.AzureCliCredential;
+});
 ```
 
----
+You can provide Azure CLI-specific options:
 
-## Advanced: Using ServiceClientFactory for Long-Running or Multi-Instance Scenarios
+```csharp
+using Azure.Identity;
 
-For advanced scenarios—such as long-running jobs, background processing, or when you need multiple independent ServiceClient instances—you can use the `ServiceClientFactory`:
+services.AddDataverse(options =>
+{
+    options.CredentialType = DataverseCredentialType.AzureCliCredential;
+    options.AzureCliCredentialOptions = new AzureCliCredentialOptions
+    {
+        TenantId = "<tenant-id>"
+    };
+});
+```
 
-### 1. Register the Factory
+### Device code only
+
+```csharp
+using Azure.Identity;
+
+services.AddDataverse(options =>
+{
+    options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
+    options.CredentialType = DataverseCredentialType.DeviceCodeCredential;
+    options.DeviceCodeCredentialOptions = new DeviceCodeCredentialOptions
+    {
+        TenantId = "<tenant-id>",
+        ClientId = "<application-client-id>"
+    };
+});
+```
+
+The device-code credential presents instructions that let the user authenticate from a browser, including on a different device.
+
+### Interactive browser only
+
+```csharp
+using Azure.Identity;
+
+services.AddDataverse(options =>
+{
+    options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
+    options.CredentialType = DataverseCredentialType.InteractiveBrowserCredential;
+    options.InteractiveBrowserCredentialOptions = new InteractiveBrowserCredentialOptions
+    {
+        TenantId = "<tenant-id>",
+        ClientId = "<application-client-id>"
+    };
+});
+```
+
+When you do **not** supply `InteractiveBrowserCredentialOptions`, the library enables persistent token caching automatically (see [Persistent token caching](#persistent-token-caching)). Supplying your own options means the library uses them as-is and does not add caching on your behalf.
+
+## Providing a custom TokenCredential
+
+The three built-in types are the opinionated choices for the CLI. When calling the library directly you are not limited to them: set `DataverseOptions.TokenCredential` to any credential — for example `DefaultAzureCredential`, a service principal, or a managed identity. An explicitly supplied `TokenCredential` always takes precedence over `CredentialType` and all credential-specific options.
+
+```csharp
+using Azure.Identity;
+
+// Use DefaultAzureCredential (or any TokenCredential) when hosting the library yourself.
+TokenCredential credential = new DefaultAzureCredential();
+
+services.AddDataverse(options =>
+{
+    options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
+    options.TokenCredential = credential;
+});
+```
+
+## Resolving and using ServiceClient
+
+```csharp
+using Microsoft.PowerPlatform.Dataverse.Client;
+
+using var provider = services.BuildServiceProvider();
+var serviceClient = provider.GetRequiredService<ServiceClient>();
+```
+
+To register the related organization-service interfaces as well:
+
+```csharp
+services.AddDataverseWithOrganizationServices(options =>
+{
+    options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
+    options.CredentialType = DataverseCredentialType.AzureCliCredential;
+});
+```
+
+This registers:
+
+- `ServiceClient`
+- `IOrganizationServiceAsync2`
+- `IOrganizationServiceAsync`
+- `IOrganizationService`
+
+## ServiceClientFactory
+
+Use `IServiceClientFactory` when you need separate `ServiceClient` instances:
+
+```csharp
+services.AddDataverseFactory(options =>
+{
+    options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
+    options.CredentialType = DataverseCredentialType.DeviceCodeCredential;
+});
+
+using var provider = services.BuildServiceProvider();
+var factory = provider.GetRequiredService<IServiceClientFactory>();
+
+var defaultClient = factory.CreateClient();
+
+var interactiveClient = factory.CreateClient(new DataverseOptions
+{
+    DataverseUrl = "https://anotherorg.crm4.dynamics.com",
+    CredentialType = DataverseCredentialType.InteractiveBrowserCredential
+});
+```
+
+To inject a custom credential into the factory, set `DataverseOptions.TokenCredential` in the `configureOptions` callback (or per client via `CreateClient`). A per-client `DataverseOptions.TokenCredential` always has the highest precedence.
+
+## Persistent token caching
+
+For `InteractiveBrowserCredential` and `DeviceCodeCredential`, the library enables persistent token caching by default (when you do not pass your own credential-specific options). Tokens and the signed-in account are stored under `~/.dataverseconnection`, so subsequent runs — including separate CLI invocations — acquire tokens silently instead of prompting again. `AzureCliCredential` is unaffected because the `az` CLI manages its own cache.
+
+The on-disk cache is encrypted using the operating system keychain (DPAPI on Windows, Keychain on macOS, **libsecret on Linux/WSL**). If encrypted storage is unavailable — common on headless Linux or WSL without libsecret — the library falls back to a non-persistent credential that prompts on every run, rather than writing tokens to disk unencrypted.
+
+## Configuration
+
+By default the library reads its settings from the registered `IConfiguration`, so a tool does **not** have to write any authentication code — it just registers an `IConfiguration` and calls one of the `AddDataverse*` methods. Every tool can share the same app settings and behave consistently without reinventing the wiring.
+
+Register a configuration source and the Dataverse services:
 
 ```csharp
 using DataverseConnection;
+using Microsoft.Extensions.Configuration;
+using Microsoft.Extensions.DependencyInjection;
+
+var configuration = new ConfigurationBuilder()
+    .AddJsonFile("appsettings.json", optional: true)
+    .AddEnvironmentVariables()
+    .Build();
 
 var services = new ServiceCollection();
-services.AddDataverseFactory(options =>
-{
-    // This is optional, by default the url is fetched from DATAVERSE_URL from the configuration
-    options.DataverseUrl = "<DataverseEnvironmentUrl>";
-});
+services.AddSingleton<IConfiguration>(configuration);
+
+// URL and credential type are read from configuration automatically.
+services.AddDataverseWithOrganizationServices();
+services.AddDataverseFactory();
 ```
 
-### 2. Resolve and Use the Factory
+The library reads two flat keys (from `appsettings.json`, environment variables, or any other configuration source):
 
-```csharp
-var provider = services.BuildServiceProvider();
-var factory = provider.GetRequiredService<IServiceClientFactory>();
+| Key | Required | Values |
+| --- | --- | --- |
+| `DATAVERSE_URL` | Yes (unless set on `DataverseOptions.DataverseUrl`) | The environment URL, e.g. `https://yourorg.crm4.dynamics.com`. |
+| `DATAVERSE_CREDENTIAL_TYPE` | No (defaults to `browser`) | `browser`, `devicecode`, or `azcli` (case-insensitive). |
 
-// Create a new ServiceClient instance (optionally override options per call)
-var serviceClient = factory.CreateClient(); // uses default options
-
-// Or, provide custom options for this instance
-var customClient = factory.CreateClient(new DataverseConnection.DataverseOptions
+```json
 {
-    DataverseUrl = "<AnotherDataverseEnvironmentUrl>"
-});
-```
-
-> **Note:** The default singleton ServiceClient registration remains recommended for most use cases. Use the factory only when you need to create new, independent ServiceClient instances (e.g., for parallel, long-running, or isolated operations).
-
----
-
-## Example: WhoAmI Verification Tool
-
-The repository includes a CLI tool (`DataverseWhoAmI`) that demonstrates and verifies the DataverseConnection library.
-
-### Add appsettings.json
-
-```
-{
-  "DATAVERSE_URL": "https://yoururl.crm4.dynamics.com"
+  "DATAVERSE_URL": "https://yourorg.crm4.dynamics.com",
+  "DATAVERSE_CREDENTIAL_TYPE": "browser"
 }
 ```
 
-### Run the CLI Tool
+The credential-type strings map to the [opinionated credential types](#selecting-a-credential-type):
 
-```sh
+| Config value | Credential type |
+| --- | --- |
+| `browser` (default) | `InteractiveBrowserCredential` |
+| `devicecode` | `DeviceCodeCredential` |
+| `azcli` | `AzureCliCredential` |
+
+An unrecognized `DATAVERSE_CREDENTIAL_TYPE` throws at startup, listing the valid values.
+
+### Overriding the defaults
+
+Values read from configuration are just the defaults. To do something specific — a fixed credential type, a custom `TokenCredential`, credential-specific options, or a hard-coded URL — pass a `configureOptions` callback. It runs **after** the configuration is applied, so anything you set there wins:
+
+```csharp
+services.AddDataverseWithOrganizationServices(options =>
+{
+    // Overrides DATAVERSE_CREDENTIAL_TYPE from configuration.
+    options.CredentialType = DataverseCredentialType.AzureCliCredential;
+});
+```
+
+Because the callback overrides configuration, a tool that needs full control writes only the lines it cares about; everything else still comes from the shared app settings.
+
+## WhoAmI verification tool
+
+```powershell
 cd DataverseWhoAmI
 dotnet run
 ```
 
-The tool prints the result of the WhoAmIRequest:
-
-```
-UserId:           <guid>
-BusinessUnitId:   <guid>
-OrganizationId:   <guid>
-```
-
----
+The tool executes `WhoAmIRequest` and prints the user, business unit, and organization IDs.
 
 ## License
 
