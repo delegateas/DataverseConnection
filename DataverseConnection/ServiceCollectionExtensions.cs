@@ -33,7 +33,8 @@ namespace DataverseConnection
                     Internal.DataverseOptionsBinder.Bind(options, configuration);
                 configureOptions?.Invoke(options);
 
-                var credential = Internal.DataverseCredentialFactory.Create(options);
+                var dataverseUrl = Internal.ServiceClientBuilder.ResolveDataverseUrl(options, configuration);
+                var credential = Internal.DataverseCredentialFactory.Create(options, dataverseUrl);
                 return Internal.ServiceClientBuilder.Build(
                     options,
                     memoryCache,

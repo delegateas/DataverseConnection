@@ -23,16 +23,7 @@ namespace DataverseConnection.Internal
             IConfiguration? configuration,
             TokenCredential credential)
         {
-            string? dataverseUrl = options.DataverseUrl;
-            if (string.IsNullOrWhiteSpace(dataverseUrl))
-            {
-                dataverseUrl = configuration is null
-                    ? null
-                    : DataverseOptionsBinder.GetDataverseUrl(configuration);
-            }
-
-            if (string.IsNullOrWhiteSpace(dataverseUrl))
-                throw new InvalidOperationException("DataverseUrl must be provided via options or configuration (DataverseUrl or DATAVERSE_URL).");
+            var dataverseUrl = ResolveDataverseUrl(options, configuration);
 
             var credentialCacheIdentity = CredentialCacheIdentities.GetValue(
                 credential,
@@ -73,6 +64,23 @@ namespace DataverseConnection.Internal
                 throw new InvalidOperationException("ServiceClient is not ready. Check your credentials and Dataverse URL.");
 
             return serviceClient;
+        }
+
+        internal static string ResolveDataverseUrl(
+            DataverseOptions options,
+            IConfiguration? configuration)
+        {
+            ArgumentNullException.ThrowIfNull(options);
+
+            var dataverseUrl = options.DataverseUrl;
+            if (string.IsNullOrWhiteSpace(dataverseUrl) && configuration is not null)
+                dataverseUrl = DataverseOptionsBinder.GetDataverseUrl(configuration);
+
+            if (string.IsNullOrWhiteSpace(dataverseUrl))
+                throw new InvalidOperationException(
+                    "DataverseUrl must be provided via options or configuration (DataverseUrl or DATAVERSE_URL).");
+
+            return dataverseUrl;
         }
 
         private sealed record CredentialCacheIdentity(long Value);
