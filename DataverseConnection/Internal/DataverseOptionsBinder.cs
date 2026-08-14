@@ -10,9 +10,15 @@ namespace DataverseConnection.Internal
     /// </summary>
     internal static class DataverseOptionsBinder
     {
+        internal const string DataverseUrlKey = "DataverseUrl";
+        internal const string LegacyDataverseUrlKey = "DATAVERSE_URL";
+        internal const string DataverseCredentialTypeKey = "DataverseCredentialType";
+        internal const string LegacyDataverseCredentialTypeKey = "DATAVERSE_CREDENTIAL_TYPE";
+
         /// <summary>
-        /// Reads the flat configuration keys <c>DATAVERSE_URL</c> and
-        /// <c>DATAVERSE_CREDENTIAL_TYPE</c> and applies them to <paramref name="options"/>.
+        /// Reads the flat configuration keys <c>DataverseUrl</c> and
+        /// <c>DataverseCredentialType</c>, with support for their legacy uppercase forms,
+        /// and applies them to <paramref name="options"/>.
         /// </summary>
         public static void Bind(DataverseOptions options, IConfiguration configuration)
         {
@@ -21,12 +27,15 @@ namespace DataverseConnection.Internal
 
             if (string.IsNullOrWhiteSpace(options.DataverseUrl))
             {
-                var url = configuration["DATAVERSE_URL"];
+                var url = GetDataverseUrl(configuration);
                 if (!string.IsNullOrWhiteSpace(url))
                     options.DataverseUrl = url;
             }
 
-            var credentialType = configuration["DATAVERSE_CREDENTIAL_TYPE"];
+            var credentialType = GetFirstConfiguredValue(
+                configuration,
+                DataverseCredentialTypeKey,
+                LegacyDataverseCredentialTypeKey);
             if (!string.IsNullOrWhiteSpace(credentialType))
             {
                 options.CredentialType = credentialType.Trim().ToLowerInvariant() switch
@@ -35,9 +44,23 @@ namespace DataverseConnection.Internal
                     "devicecode" => DataverseCredentialType.DeviceCodeCredential,
                     "azcli" => DataverseCredentialType.AzureCliCredential,
                     _ => throw new ArgumentException(
-                        $"Unknown DATAVERSE_CREDENTIAL_TYPE '{credentialType}'. Valid values: browser, devicecode, azcli.")
+                        $"Unknown {DataverseCredentialTypeKey} '{credentialType}'. Valid values: browser, devicecode, azcli.")
                 };
             }
+        }
+
+        internal static string? GetDataverseUrl(IConfiguration configuration) =>
+            GetFirstConfiguredValue(configuration, DataverseUrlKey, LegacyDataverseUrlKey);
+
+        private static string? GetFirstConfiguredValue(
+            IConfiguration configuration,
+            string pascalCaseKey,
+            string legacyUppercaseKey)
+        {
+            var value = configuration[pascalCaseKey];
+            return !string.IsNullOrWhiteSpace(value)
+                ? value
+                : configuration[legacyUppercaseKey];
         }
     }
 }

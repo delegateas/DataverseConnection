@@ -36,7 +36,7 @@ var services = new ServiceCollection();
 
 services.AddDataverse(options =>
 {
-    // Optional when DATAVERSE_URL is available through IConfiguration.
+    // Optional when DataverseUrl is available through IConfiguration.
     options.DataverseUrl = "https://yourorg.crm4.dynamics.com";
 });
 ```
@@ -218,17 +218,17 @@ services.AddDataverseWithOrganizationServices();
 services.AddDataverseFactory();
 ```
 
-The library reads two flat keys (from `appsettings.json`, environment variables, or any other configuration source):
+The library reads two flat PascalCase keys (from `appsettings.json`, environment variables, or any other configuration source). The legacy uppercase keys remain supported for backward compatibility:
 
 | Key | Required | Values |
 | --- | --- | --- |
-| `DATAVERSE_URL` | Yes (unless set on `DataverseOptions.DataverseUrl`) | The environment URL, e.g. `https://yourorg.crm4.dynamics.com`. |
-| `DATAVERSE_CREDENTIAL_TYPE` | No (defaults to `browser`) | `browser`, `devicecode`, or `azcli` (case-insensitive). |
+| `DataverseUrl` (or legacy `DATAVERSE_URL`) | Yes (unless set on `DataverseOptions.DataverseUrl`) | The environment URL, e.g. `https://yourorg.crm4.dynamics.com`. |
+| `DataverseCredentialType` (or legacy `DATAVERSE_CREDENTIAL_TYPE`) | No (defaults to `browser`) | `browser`, `devicecode`, or `azcli` (case-insensitive). |
 
 ```json
 {
-  "DATAVERSE_URL": "https://yourorg.crm4.dynamics.com",
-  "DATAVERSE_CREDENTIAL_TYPE": "browser"
+  "DataverseUrl": "https://yourorg.crm4.dynamics.com",
+  "DataverseCredentialType": "browser"
 }
 ```
 
@@ -240,7 +240,7 @@ The credential-type strings map to the [opinionated credential types](#selecting
 | `devicecode` | `DeviceCodeCredential` |
 | `azcli` | `AzureCliCredential` |
 
-An unrecognized `DATAVERSE_CREDENTIAL_TYPE` throws at startup, listing the valid values.
+An unrecognized `DataverseCredentialType` (or legacy `DATAVERSE_CREDENTIAL_TYPE`) throws at startup, listing the valid values.
 
 ### Overriding the defaults
 
@@ -249,7 +249,7 @@ Values read from configuration are just the defaults. To do something specific â
 ```csharp
 services.AddDataverseWithOrganizationServices(options =>
 {
-    // Overrides DATAVERSE_CREDENTIAL_TYPE from configuration.
+    // Overrides DataverseCredentialType from configuration.
     options.CredentialType = DataverseCredentialType.AzureCliCredential;
 });
 ```
