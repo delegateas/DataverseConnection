@@ -1,5 +1,7 @@
 using System;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 using Azure.Core;
@@ -30,13 +32,13 @@ namespace DataverseConnection.Internal
         /// <summary>
         /// Creates an <see cref="InteractiveBrowserCredential"/> with persistent token caching.
         /// </summary>
-        public static TokenCredential CreateInteractiveBrowser()
+        public static TokenCredential CreateInteractiveBrowser(string dataverseUrl)
         {
-            const string key = "interactive-browser";
+            var key = CreatePersistenceKey("interactive-browser", dataverseUrl);
             var record = TryLoadRecord(key);
             var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
             {
-                TokenCachePersistenceOptions = new TokenCachePersistenceOptions { Name = CacheName },
+                TokenCachePersistenceOptions = new TokenCachePersistenceOptions { Name = CreateCacheName(key) },
                 AuthenticationRecord = record,
             });
 
@@ -51,13 +53,13 @@ namespace DataverseConnection.Internal
         /// <summary>
         /// Creates a <see cref="DeviceCodeCredential"/> with persistent token caching.
         /// </summary>
-        public static TokenCredential CreateDeviceCode()
+        public static TokenCredential CreateDeviceCode(string dataverseUrl)
         {
-            const string key = "device-code";
+            var key = CreatePersistenceKey("device-code", dataverseUrl);
             var record = TryLoadRecord(key);
             var credential = new DeviceCodeCredential(new DeviceCodeCredentialOptions
             {
-                TokenCachePersistenceOptions = new TokenCachePersistenceOptions { Name = CacheName },
+                TokenCachePersistenceOptions = new TokenCachePersistenceOptions { Name = CreateCacheName(key) },
                 AuthenticationRecord = record,
             });
 
@@ -68,6 +70,19 @@ namespace DataverseConnection.Internal
                 key,
                 () => new DeviceCodeCredential());
         }
+
+        internal static string CreatePersistenceKey(string credentialType, string dataverseUrl)
+        {
+            ArgumentException.ThrowIfNullOrWhiteSpace(credentialType);
+            ArgumentException.ThrowIfNullOrWhiteSpace(dataverseUrl);
+
+            var uri = new Uri(dataverseUrl, UriKind.Absolute);
+            var environment = uri.GetLeftPart(UriPartial.Authority).ToLowerInvariant();
+            var hash = Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(environment))).ToLowerInvariant();
+            return $"{credentialType}-{hash}";
+        }
+
+        internal static string CreateCacheName(string key) => $"{CacheName}-{key}";
 
         internal static AuthenticationRecord? TryLoadRecord(string key)
         {
@@ -120,6 +135,8 @@ namespace DataverseConnection.Internal
 
         private volatile bool _recordEnsured;
         private TokenCredential? _fallback;
+
+        internal string PersistenceKey => _key;
 
         public PersistentAuthCredential(
             TokenCredential inner,

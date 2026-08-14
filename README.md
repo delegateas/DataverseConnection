@@ -190,7 +190,7 @@ To inject a custom credential into the factory, set `DataverseOptions.TokenCrede
 
 ## Persistent token caching
 
-For `InteractiveBrowserCredential` and `DeviceCodeCredential`, the library enables persistent token caching by default (when you do not pass your own credential-specific options). Tokens and the signed-in account are stored under `~/.dataverseconnection`, so subsequent runs — including separate CLI invocations — acquire tokens silently instead of prompting again. `AzureCliCredential` is unaffected because the `az` CLI manages its own cache.
+For `InteractiveBrowserCredential` and `DeviceCodeCredential`, the library enables persistent token caching by default (when you do not pass your own credential-specific options). The cache and signed-in account are indexed by the normalized Dataverse environment URL and stored under `~/.dataverseconnection`. Separate projects that use the same environment reuse its sign-in, while a different environment gets an independent sign-in and cannot overwrite the first one. `AzureCliCredential` is unaffected because the `az` CLI manages its own cache.
 
 The on-disk cache is encrypted using the operating system keychain (DPAPI on Windows, Keychain on macOS, **libsecret on Linux/WSL**). If encrypted storage is unavailable — common on headless Linux or WSL without libsecret — the library falls back to a non-persistent credential that prompts on every run, rather than writing tokens to disk unencrypted.
 

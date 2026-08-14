@@ -13,8 +13,9 @@ namespace DataverseConnection
     {
         private readonly IMemoryCache _memoryCache;
         private readonly IConfiguration _configuration;
-        private readonly TokenCredential _defaultOptionsCredential;
         private readonly DataverseOptions _defaultOptions;
+        private readonly object _defaultCredentialGate = new();
+        private TokenCredential? _defaultOptionsCredential;
 
         public ServiceClientFactory(
             IMemoryCache memoryCache,
@@ -24,15 +25,17 @@ namespace DataverseConnection
             _memoryCache = memoryCache;
             _configuration = configuration;
             _defaultOptions = defaultOptions ?? new DataverseOptions();
-            _defaultOptionsCredential = Internal.DataverseCredentialFactory.Create(_defaultOptions);
         }
 
         public ServiceClient CreateClient(DataverseOptions? options = null)
         {
             var effectiveOptions = options ?? _defaultOptions;
+            var dataverseUrl = Internal.ServiceClientBuilder.ResolveDataverseUrl(
+                effectiveOptions,
+                _configuration);
             var credential = options is null
-                ? _defaultOptionsCredential
-                : Internal.DataverseCredentialFactory.Create(options);
+                ? GetOrCreateDefaultCredential(dataverseUrl)
+                : Internal.DataverseCredentialFactory.Create(options, dataverseUrl);
 
             return Internal.ServiceClientBuilder.Build(
                 effectiveOptions,
@@ -40,6 +43,18 @@ namespace DataverseConnection
                 _configuration,
                 credential
             );
+        }
+
+        private TokenCredential GetOrCreateDefaultCredential(string dataverseUrl)
+        {
+            if (_defaultOptionsCredential is not null)
+                return _defaultOptionsCredential;
+
+            lock (_defaultCredentialGate)
+            {
+                return _defaultOptionsCredential ??=
+                    Internal.DataverseCredentialFactory.Create(_defaultOptions, dataverseUrl);
+            }
         }
     }
 }

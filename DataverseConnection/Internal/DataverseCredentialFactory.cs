@@ -9,7 +9,7 @@ namespace DataverseConnection.Internal
     /// </summary>
     internal static class DataverseCredentialFactory
     {
-        public static TokenCredential Create(DataverseOptions options)
+        public static TokenCredential Create(DataverseOptions options, string? dataverseUrl = null)
         {
             ArgumentNullException.ThrowIfNull(options);
 
@@ -27,12 +27,12 @@ namespace DataverseConnection.Internal
                 // as rarely as possible. Caller-supplied options are respected as-is.
                 DataverseCredentialType.DeviceCodeCredential =>
                     options.DeviceCodeCredentialOptions is null
-                        ? PersistentCredentialCache.CreateDeviceCode()
+                        ? PersistentCredentialCache.CreateDeviceCode(RequireDataverseUrl(dataverseUrl))
                         : new DeviceCodeCredential(options.DeviceCodeCredentialOptions),
 
                 DataverseCredentialType.InteractiveBrowserCredential =>
                     options.InteractiveBrowserCredentialOptions is null
-                        ? PersistentCredentialCache.CreateInteractiveBrowser()
+                        ? PersistentCredentialCache.CreateInteractiveBrowser(RequireDataverseUrl(dataverseUrl))
                         : new InteractiveBrowserCredential(options.InteractiveBrowserCredentialOptions),
 
                 _ => throw new ArgumentOutOfRangeException(
@@ -41,5 +41,11 @@ namespace DataverseConnection.Internal
                     "Unsupported Dataverse credential type.")
             };
         }
+
+        private static string RequireDataverseUrl(string? dataverseUrl) =>
+            !string.IsNullOrWhiteSpace(dataverseUrl)
+                ? dataverseUrl
+                : throw new InvalidOperationException(
+                    "DataverseUrl is required to create a persistent interactive credential.");
     }
 }
