@@ -26,11 +26,13 @@ namespace DataverseConnection.Internal
             string? dataverseUrl = options.DataverseUrl;
             if (string.IsNullOrWhiteSpace(dataverseUrl))
             {
-                dataverseUrl = configuration?["DATAVERSE_URL"];
+                dataverseUrl = configuration is null
+                    ? null
+                    : DataverseOptionsBinder.GetDataverseUrl(configuration);
             }
 
             if (string.IsNullOrWhiteSpace(dataverseUrl))
-                throw new InvalidOperationException("DataverseUrl must be provided via options or configuration (DATAVERSE_URL).");
+                throw new InvalidOperationException("DataverseUrl must be provided via options or configuration (DataverseUrl or DATAVERSE_URL).");
 
             var credentialCacheIdentity = CredentialCacheIdentities.GetValue(
                 credential,
