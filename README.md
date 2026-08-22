@@ -190,9 +190,11 @@ To inject a custom credential into the factory, set `DataverseOptions.TokenCrede
 
 ## Persistent token caching
 
-For `InteractiveBrowserCredential` and `DeviceCodeCredential`, the library enables persistent token caching by default (when you do not pass your own credential-specific options). The cache and signed-in account are indexed by the normalized Dataverse environment URL and stored under `~/.dataverseconnection`. Separate projects that use the same environment reuse its sign-in, while a different environment gets an independent sign-in and cannot overwrite the first one. `AzureCliCredential` is unaffected because the `az` CLI manages its own cache.
+For `InteractiveBrowserCredential` and `DeviceCodeCredential`, the library enables persistent token caching by default (when you do not pass your own credential-specific options). The cache and signed-in account are indexed by the normalized Dataverse environment URL. Separate projects that use the same environment reuse its sign-in, while a different environment gets an independent sign-in and cannot overwrite the first one. `AzureCliCredential` is unaffected because the `az` CLI manages its own cache.
 
-The on-disk cache is encrypted using the operating system keychain (DPAPI on Windows, Keychain on macOS, **libsecret on Linux/WSL**). If encrypted storage is unavailable — common on headless Linux or WSL without libsecret — the library falls back to a non-persistent credential that prompts on every run, rather than writing tokens to disk unencrypted.
+The cache uses the operating system keychain when one is available (DPAPI on Windows, Keychain on macOS, and **libsecret on Linux/WSL**). Because containers and other headless Linux environments commonly have no `libsecret`, Linux also permits Azure Identity's unencrypted file-based fallback. Windows and macOS continue to require encrypted storage.
+
+> **Linux/container security:** The Linux fallback contains reusable authentication tokens and must be treated as a secret. Run the container as a dedicated non-root user, do not share its home directory, and restrict any mounted cache volume to that user. To keep the login across container replacements, persist the user's home-directory cache data (including `~/.IdentityService` and `~/.dataverseconnection`) in a private volume.
 
 ## Configuration
 

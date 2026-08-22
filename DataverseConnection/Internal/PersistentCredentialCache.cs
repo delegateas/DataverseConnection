@@ -11,15 +11,15 @@ namespace DataverseConnection.Internal
 {
     /// <summary>
     /// Builds the interactive (MSAL-based) credentials with healthy caching defaults so a user logs
-    /// in as rarely as possible. Tokens are persisted to an OS-encrypted store and the account is
-    /// remembered via a serialized <see cref="AuthenticationRecord"/>, allowing later runs to acquire
-    /// tokens silently.
+    /// in as rarely as possible. Tokens are persisted to the operating system credential store where
+    /// available and the account is remembered via a serialized <see cref="AuthenticationRecord"/>,
+    /// allowing later runs to acquire tokens silently.
     /// </summary>
     /// <remarks>
     /// Persistent encryption relies on the OS keychain (DPAPI on Windows, Keychain on macOS,
-    /// libsecret on Linux). If it is unavailable — a common case on headless Linux/WSL without
-    /// libsecret — the credential falls back to a non-persistent one that prompts on every run,
-    /// rather than storing tokens unencrypted on disk.
+    /// libsecret on Linux). Headless Linux environments commonly have no keychain, so Linux alone
+    /// permits Azure Identity's unencrypted file fallback. The cache must therefore be treated as a
+    /// secret and made available only to the user or container that owns it.
     /// </remarks>
     internal static class PersistentCredentialCache
     {
@@ -38,7 +38,7 @@ namespace DataverseConnection.Internal
             var record = TryLoadRecord(key);
             var credential = new InteractiveBrowserCredential(new InteractiveBrowserCredentialOptions
             {
-                TokenCachePersistenceOptions = new TokenCachePersistenceOptions { Name = CreateCacheName(key) },
+                TokenCachePersistenceOptions = CreateTokenCachePersistenceOptions(key),
                 AuthenticationRecord = record,
             });
 
@@ -59,7 +59,7 @@ namespace DataverseConnection.Internal
             var record = TryLoadRecord(key);
             var credential = new DeviceCodeCredential(new DeviceCodeCredentialOptions
             {
-                TokenCachePersistenceOptions = new TokenCachePersistenceOptions { Name = CreateCacheName(key) },
+                TokenCachePersistenceOptions = CreateTokenCachePersistenceOptions(key),
                 AuthenticationRecord = record,
             });
 
@@ -83,6 +83,18 @@ namespace DataverseConnection.Internal
         }
 
         internal static string CreateCacheName(string key) => $"{CacheName}-{key}";
+
+        internal static TokenCachePersistenceOptions CreateTokenCachePersistenceOptions(
+            string key,
+            bool? isLinux = null) => new()
+            {
+                Name = CreateCacheName(key),
+
+                // Containers and other headless Linux hosts generally do not provide libsecret. Azure
+                // Identity still prefers libsecret when it is available; this only permits its
+                // file-based fallback so browser and device-code sessions survive process restarts.
+                UnsafeAllowUnencryptedStorage = isLinux ?? OperatingSystem.IsLinux(),
+            };
 
         internal static AuthenticationRecord? TryLoadRecord(string key)
         {
