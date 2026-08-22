@@ -75,6 +75,22 @@ public class DataverseCredentialFactoryTests
     }
 
     [Fact]
+    public void PersistentCache_AllowsFileFallback_OnLinux()
+    {
+        var options = PersistentCredentialCache.CreateTokenCachePersistenceOptions("test", isLinux: true);
+
+        Assert.True(options.UnsafeAllowUnencryptedStorage);
+    }
+
+    [Fact]
+    public void PersistentCache_RequiresEncryptedStorage_OnOtherOperatingSystems()
+    {
+        var options = PersistentCredentialCache.CreateTokenCachePersistenceOptions("test", isLinux: false);
+
+        Assert.False(options.UnsafeAllowUnencryptedStorage);
+    }
+
+    [Fact]
     public void Create_UsesSamePersistentCredentialKey_ForSameEnvironmentUrl()
     {
         var first = Assert.IsType<PersistentAuthCredential>(

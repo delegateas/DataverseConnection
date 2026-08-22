@@ -18,6 +18,7 @@
   <ItemGroup>
     <PackageReference Include="Azure.Identity" Version="1.13.2" />
     <PackageReference Include="Microsoft.PowerPlatform.Dataverse.Client" Version="1.2.7" />
+    <PackageReference Include="System.Security.Cryptography.Xml" Version="10.0.11" />
     <PackageReference Include="DataverseConnection" Version="*" />
     <PackageReference Include="Microsoft.Extensions.Configuration" Version="8.0.0" />
     <PackageReference Include="Microsoft.Extensions.Configuration.Json" Version="8.0.0" />
